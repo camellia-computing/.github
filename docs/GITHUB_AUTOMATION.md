@@ -13,8 +13,8 @@ exact organization automation currently in use.
 
 ## Camellia Nexus Release Manager
 
-This App is required only for the coordinated Nexus/Nexus Management release
-path.
+This App is the machine identity for coordinated Nexus release management,
+verified Remote publication, and the read-only organization policy audit.
 
 | Setting | Required value |
 | --- | --- |
@@ -28,9 +28,10 @@ path.
 | Pull requests | Read and write |
 | Metadata | Read-only (GitHub-required) |
 | Organization permissions | None |
-| Installation scope | Selected repositories only: `nexus`, `nexus-management-server` |
+| Installation scope | Selected repositories only: `.github`, `nexus`, `nexus-management-server`, `remote-client`, `remote-management-server` |
+| Actions / Workflows | None |
 
-Each installed repository needs:
+Each release repository needs:
 
 - variable `RELEASE_APP_CLIENT_ID` containing the App **Client ID**, not its
   numeric App ID;
@@ -39,10 +40,13 @@ Each installed repository needs:
 - secret `RELEASE_APP_PRIVATE_KEY` containing one complete generated PEM private
   key.
 
-The three values are an atomic group. The policy job rejects a partial group or
-an installation token whose identity does not match `RELEASE_APP_LOGIN`.
+The three values are an atomic group. Prefer selected-repository organization
+variables/secrets over duplicated repository values. After the organization
+group is verified, remove same-named repository overrides so all consumers
+rotate together. The policy job rejects a partial group or an installation
+token whose identity does not match `RELEASE_APP_LOGIN`.
 
-The App is consumed in both repositories at:
+The App is consumed by Nexus at:
 
 - `.github/workflows/main.yml` for policy validation;
 - `.github/workflows/merge.yml` for controlled merge operations;
@@ -50,9 +54,21 @@ The App is consumed in both repositories at:
   machine;
 - `.github/workflows/publish-release.yml` for release publication.
 
-Private keys are rotated in the GitHub App settings, then updated in both
-repository secrets before the old key is revoked. Every rotation ends with a
-successful `Main` run in both repositories.
+Remote Client and Remote Management consume it in `.github/workflows/main.yml`
+for hosted-policy validation and `.github/workflows/release.yml` for
+App-authored, read-back-verified immutable Releases. Candidate mode never
+receives the App key or token.
+
+The `.github` repository uses `RELEASE_APP_CLIENT_ID` and
+`RELEASE_APP_PRIVATE_KEY` to run the weekly
+[organization policy audit](ORGANIZATION_POLICY_AUDIT.md). It does not need the
+bot-login variable because the workflow compares the minted token's slug to the
+fixed reviewed identity.
+
+Private keys are rotated in the GitHub App settings, then updated in the
+selected-repository organization secret before the old key is revoked. Every
+rotation ends with a successful `Main` run in all four release repositories and
+a compliant organization audit.
 
 ## Optional cross-repository reader
 

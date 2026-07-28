@@ -1,0 +1,51 @@
+name: Policy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: organization-policy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  standards:
+    name: Organization standards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate registry and tracked signing material
+        run: python3 scripts/validate-signing-identities.py
+      - name: Test repository policy automation
+        run: |
+          python3 -m compileall -q scripts
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v
+          shellcheck scripts/*.sh
+          bash scripts/test_reconcile_policy_audit_issue.sh
+      - name: Validate workflow syntax
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+  required:
+    name: Policy / Required
+    if: always()
+    needs: standards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every policy gate
+        env:
+          STANDARDS: ${{ needs.standards.result }}
+        run: |
+          [[ "$STANDARDS" == success ]] || {
+            echo "Organization standards did not succeed: $STANDARDS" >&2
+            exit 1
+          }

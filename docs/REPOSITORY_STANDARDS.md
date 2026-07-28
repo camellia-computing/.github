@@ -19,6 +19,11 @@ must fail closed.
 
 Required checks are repository-specific but must cover formatting, static analysis, unit/integration tests, dependency and secret review, build reproducibility, migration drift where applicable, and release-policy regression tests. Native packages are validated on their owning operating systems.
 
+The common control outcomes, release state machine and the strengths adopted
+between Nexus and Remote are defined in
+[`CI_CD_BASELINE.md`](CI_CD_BASELINE.md). A repository may use different job
+names only when its stable aggregate required check preserves those outcomes.
+
 Production services additionally require a non-root/read-only deployment path, dropped capabilities, health/readiness checks, explicit migrations, bounded resources and inputs, structured observability, backup ownership, and a measured restore drill. The operating target is one region at 99.9% availability, RPO no greater than one hour, and RTO no greater than four hours until a later approved standard supersedes it.
 
 ## Branch and release policy
