@@ -139,9 +139,9 @@ When the release keystore group is absent, workflows may publish an explicitly
 named `-unsigned.apk`/`-unsigned.aab` re-signing input. It is not an installable
 public release. When enabled, the complete group is:
 
-- secret `ANDROID_KEYSTORE_BASE64`;
-- secrets `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD`;
-- variable `ANDROID_KEY_ALIAS`.
+- secret `ANDROID_SIGNING_KEY`;
+- secrets `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, and
+  `ANDROID_ALIAS`.
 
 Back up the production keystore and passwords in separate controlled locations.
 Losing the signing identity can prevent future updates.
@@ -153,8 +153,12 @@ device or App Store distribution requires an Apple distribution/development
 identity, matching entitlements, and a provisioning profile. The release must
 not describe an unsigned IPA as directly installable.
 
-Until a repository implements a complete Apple mobile signing and export path,
-its formal workflow must retain the `unsigned` filename and metadata.
+Remote Client implements a fail-closed signed path for App Store Connect,
+release-testing/Ad Hoc, development and enterprise profiles. It verifies the
+P12 identity, certificate/profile membership, expiry, Team ID,
+`com.camellia.remote` bundle ID, distribution type and final embedded
+signature/profile/entitlements. The iOS group is independent from the macOS
+Developer ID group.
 
 ## Repository responsibility matrix
 
@@ -162,7 +166,7 @@ its formal workflow must retain the `unsigned` filename and metadata.
 | --- | --- | --- |
 | `nexus` | Windows, macOS, Linux desktop packages | Windows PFX, Apple identity/P12/notary, Linux OpenPGP; all optional and independently fail-closed |
 | `nexus-management-server` | OCI service image | None; use keyless Cosign/attestation |
-| `remote-client` | Windows, macOS, Linux, Android, iOS, Web | Windows PFX, Apple identity/P12/notary, Linux OpenPGP, Android keystore; iOS remains an explicit unsigned re-signing input until implemented |
+| `remote-client` | Windows, macOS, Linux, Android, iOS, Web | Windows PFX, macOS Apple identity/P12/notary, Linux OpenPGP, Android keystore, and iOS P12/profile; all optional complete groups with explicit fallback modes |
 | `remote-server` | Linux archives and OCI images | No native certificate in the current workflow; use checksums and keyless Cosign/attestation |
 | `remote-management-server` | OCI service image | None; use keyless Cosign/attestation |
 | `remote-protocol` | Source/library contract | None |
@@ -170,6 +174,13 @@ its formal workflow must retain the `unsigned` filename and metadata.
 Do not duplicate a PFX, private key, or password into a repository that does not
 consume it. In particular, Windows PFX values do not belong in server-only image
 repositories.
+
+The current non-secret identity, expiry, consumer list and GitHub value contract
+are maintained in the
+[`signing identity registry`](SIGNING_IDENTITY_REGISTRY.md). Shared Nexus/Remote
+desktop credentials should use organization secrets restricted to both client
+repositories. Same-named repository values must be removed after migration
+because they override organization values and can silently drift.
 
 ## Release metadata contract
 

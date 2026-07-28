@@ -8,6 +8,7 @@ Record this checklist in the release pull request for the exact candidate commit
 - [ ] Production configuration, TLS/origin/proxy boundaries, minimum-version policy, and secret references were reviewed without exposing values.
 - [ ] Checksums, SBOM, provenance, vulnerability scan, signatures/attestations, and artifact identities agree.
 - [ ] Every native artifact records its signing state (`signed`, `notarized`, `ad-hoc`, `unsigned`, or `not-applicable`) and applicable distribution trust (`public-trust`, `private-trust`, `platform-key`, `none`, or `not-applicable`); no unsigned or privately trusted artifact is described as publicly trusted.
+- [ ] Every signed native identity exactly matches the current organization signing registry revision; its public fingerprint, expiry, consumer repository and trust classification agree with downloaded bytes.
 - [ ] Unsigned Android/iOS outputs are named and documented as re-signing inputs, not installable public releases.
 - [ ] Release and registry artifacts were read back by immutable digest; tags and assets cannot be silently replaced.
 - [ ] A recent isolated restore meets RPO ≤ 1 hour and RTO ≤ 4 hours for a production service.

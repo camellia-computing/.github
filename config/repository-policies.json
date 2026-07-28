@@ -1,0 +1,97 @@
+{
+  "$schema": "../schemas/repository-policies.schema.json",
+  "schema_version": 1,
+  "policy_revision": "2026-07-28.1",
+  "organization": "camellia-computing",
+  "last_reviewed_on": "2026-07-28",
+  "repositories": [
+    {
+      "name": "nexus",
+      "visibility": "public",
+      "required_status_checks": [
+        "Gate",
+        "Public API"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/main.yml",
+        ".github/workflows/publish-release.yml",
+        ".github/workflows/release-manager.yml"
+      ],
+      "release_review_team": "nexus",
+      "release_deployment_policies": [
+        {
+          "name": "main",
+          "type": "branch"
+        },
+        {
+          "name": "v*",
+          "type": "tag"
+        }
+      ]
+    },
+    {
+      "name": "nexus-management-server",
+      "visibility": "public",
+      "required_status_checks": [
+        "Gate",
+        "Public API"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/main.yml",
+        ".github/workflows/publish-release.yml",
+        ".github/workflows/release-manager.yml"
+      ],
+      "release_review_team": "nexus",
+      "release_deployment_policies": [
+        {
+          "name": "main",
+          "type": "branch"
+        },
+        {
+          "name": "v*",
+          "type": "tag"
+        }
+      ]
+    },
+    {
+      "name": "remote-client",
+      "visibility": "public",
+      "required_status_checks": [
+        "CI / Required"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml"
+      ],
+      "release_review_team": "remote",
+      "release_deployment_policies": [
+        {
+          "name": "main",
+          "type": "branch"
+        }
+      ]
+    },
+    {
+      "name": "remote-management-server",
+      "visibility": "public",
+      "required_status_checks": [
+        "CI / Required"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml"
+      ],
+      "release_review_team": "remote",
+      "release_deployment_policies": [
+        {
+          "name": "main",
+          "type": "branch"
+        }
+      ]
+    }
+  ]
+}

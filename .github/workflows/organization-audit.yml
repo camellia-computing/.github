@@ -1,0 +1,130 @@
+name: Organization Policy Audit
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: organization-policy-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit release repositories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Require audit App configuration
+        id: configuration
+        shell: bash
+        env:
+          CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          [[ -n "$CLIENT_ID" && -n "$PRIVATE_KEY" ]] || {
+            echo 'Configure the organization audit App variable and private-key secret' >&2
+            exit 1
+          }
+
+      - name: Audit App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v2.2.1
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            .github
+            nexus
+            nexus-management-server
+            remote-client
+            remote-management-server
+          permission-administration: read
+          permission-contents: read
+          permission-issues: write
+          permission-metadata: read
+
+      - name: Verify audit App identity
+        shell: bash
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          [[ "$APP_SLUG" == camellia-nexus-release-manager ]] || {
+            echo "Unexpected audit App identity: $APP_SLUG" >&2
+            exit 1
+          }
+
+      - name: Audit hosted repository policy
+        id: policy
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set +e
+          python3 scripts/audit_repository_policies.py \
+            --json-output audit-report.json \
+            --markdown-output audit-report.md
+          status=$?
+          set -e
+          cat audit-report.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      - name: Retain audit evidence
+        if: >-
+          always() &&
+          (steps.policy.outcome == 'success' || steps.policy.outcome == 'failure')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repository-policy-audit-${{ github.run_id }}
+          path: |
+            audit-report.json
+            audit-report.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Reconcile the central drift issue
+        id: issue
+        if: >-
+          always() &&
+          steps.app-token.outcome == 'success' &&
+          (steps.policy.outcome == 'success' || steps.policy.outcome == 'failure')
+        env:
+          AUDIT_ISSUE_REPOSITORY: ${{ github.repository }}
+          AUDIT_OUTCOME: ${{ steps.policy.outcome }}
+          AUDIT_REPORT_JSON: ${{ github.workspace }}/audit-report.json
+          AUDIT_REPORT_MARKDOWN: ${{ github.workspace }}/audit-report.md
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: bash scripts/reconcile_policy_audit_issue.sh
+
+      - name: Require a compliant audited state
+        if: always()
+        env:
+          APP_TOKEN: ${{ steps.app-token.outcome }}
+          CONFIGURATION: ${{ steps.configuration.outcome }}
+          ISSUE_RECONCILIATION: ${{ steps.issue.outcome }}
+          POLICY_AUDIT: ${{ steps.policy.outcome }}
+        run: |
+          [[ "$CONFIGURATION" == success ]] || {
+            echo "Audit configuration failed: $CONFIGURATION" >&2
+            exit 1
+          }
+          [[ "$APP_TOKEN" == success ]] || {
+            echo "Audit App token failed: $APP_TOKEN" >&2
+            exit 1
+          }
+          [[ "$ISSUE_RECONCILIATION" == success ]] || {
+            echo "Drift issue reconciliation failed: $ISSUE_RECONCILIATION" >&2
+            exit 1
+          }
+          [[ "$POLICY_AUDIT" == success ]] || {
+            echo "Repository policy drift was detected: $POLICY_AUDIT" >&2
+            exit 1
+          }
