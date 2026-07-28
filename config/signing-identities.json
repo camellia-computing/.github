@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/signing-identities.schema.json",
   "schema_version": 1,
-  "registry_revision": "2026-07-28.1",
+  "registry_revision": "2026-07-28.2",
   "organization": "camellia-computing",
   "last_reviewed_on": "2026-07-28",
   "identities": [
@@ -19,6 +19,7 @@
         "WINDOWS_CODESIGN_PFX_PASSWORD"
       ],
       "variable_names": [
+        "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
         "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
         "WINDOWS_SIGNING_TRUST_MODE",
         "WINDOWS_TIMESTAMP_URL"
@@ -32,7 +33,7 @@
           "value": null
         }
       },
-      "note": "The Nexus client repository has a PFX group, but its reviewed public leaf thumbprint and trust classification have not yet been registered and Remote Client has not received the shared group."
+      "note": "The Nexus client repository has a PFX group, but its reviewed SHA-256 fingerprint, native SHA-1 thumbprint and trust classification have not yet been registered and Remote Client has not received the shared group."
     },
     {
       "id": "desktop-macos-publisher",

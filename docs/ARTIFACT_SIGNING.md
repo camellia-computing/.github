@@ -60,13 +60,18 @@ The standard repository interface is:
 
 - secret `WINDOWS_CODESIGN_PFX_BASE64`;
 - secret `WINDOWS_CODESIGN_PFX_PASSWORD`;
+- variable `WINDOWS_CODESIGN_CERTIFICATE_SHA256` containing the canonical
+  uppercase 64-hexadecimal leaf fingerprint;
+- variable `WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT` containing the
+  Windows-native uppercase 40-hexadecimal SHA-1 leaf reference;
+- variable `WINDOWS_SIGNING_TRUST_MODE` containing exactly `public-trust` or
+  `private-trust`;
 - optional variable `WINDOWS_TIMESTAMP_URL`.
 
-Repositories that publish both public- and private-trust modes may additionally
-require variable `WINDOWS_SIGNING_TRUST_MODE` to contain exactly
-`public-trust` or `private-trust`. Remote Client uses this explicit
-classification; Nexus currently records the verified native signing state and
-documents the selected trust chain in its release evidence.
+Nexus and Remote Client reject a PFX whose derived SHA-256 fingerprint or
+native thumbprint differs from the reviewed organization variables. Both
+repositories record the verified native signing state and explicit trust
+classification in their release evidence.
 
 Generate a private test hierarchy on a controlled Windows workstation with
 PowerShell 7.6 or later:

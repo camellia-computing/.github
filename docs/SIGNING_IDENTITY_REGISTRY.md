@@ -27,7 +27,8 @@ For publisher identities shared by Nexus and Remote Client:
 1. Store one reviewed credential group as organization secrets with selected
    repository access to `nexus` and `remote-client`.
 2. Store the non-secret expected identity and trust classification as selected
-   organization variables using the names in the registry.
+   organization variables using the names in the registry. Windows consumers
+   validate both the canonical SHA-256 fingerprint and native SHA-1 thumbprint.
 3. Remove same-named repository secrets/variables after the organization group
    is verified; repository values override organization values and can
    silently split identity continuity.
