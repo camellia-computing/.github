@@ -2,3 +2,14 @@
 Thumbs.db
 *.swp
 *.tmp
+
+# Local signing material. Public certificates/keys that are intentionally
+# published must be force-added only after a review confirms they contain no
+# private key material.
+*.p12
+*.pfx
+*.key
+*.private.pem
+*-private.asc
+certificate-base64.txt
+signing-output/

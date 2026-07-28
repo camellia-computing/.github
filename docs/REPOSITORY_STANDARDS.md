@@ -8,6 +8,13 @@ Every active product repository must contain:
 - a clean default branch, no tracked credentials/databases/build output, and no compatibility paths for unsupported pre-release state;
 - immutable release inputs, checksums, SBOM/provenance, signing or attestation, and remote-state readback before publication.
 
+Repositories that publish native artifacts must implement the organization
+policy in [`ARTIFACT_SIGNING.md`](ARTIFACT_SIGNING.md). Publicly trusted,
+privately trusted, ad-hoc, and unsigned outputs are supported product choices,
+but the selected mode must be validated as a complete configuration group and
+recorded in machine-readable release metadata. A partial signing configuration
+must fail closed.
+
 ## Required checks
 
 Required checks are repository-specific but must cover formatting, static analysis, unit/integration tests, dependency and secret review, build reproducibility, migration drift where applicable, and release-policy regression tests. Native packages are validated on their owning operating systems.
@@ -24,3 +31,8 @@ Production services additionally require a non-root/read-only deployment path, d
 - Release environments require independent approval and do not permit self-review where the GitHub plan supports it.
 
 Signed commits and tags are encouraged. They become mandatory only after every authorized contributor and automation identity has a registered, recoverable signing setup and the rule has been tested without creating a lockout.
+
+GitHub Apps, reusable workflows, composite actions, their permissions, and
+their repository locations are catalogued in
+[`GITHUB_AUTOMATION.md`](GITHUB_AUTOMATION.md). New automation identities must
+be added there before production use.
