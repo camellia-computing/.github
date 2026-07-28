@@ -22,6 +22,7 @@ TARGET_REPOSITORIES = {
     "nexus-management-server",
     "remote-client",
     "remote-management-server",
+    "remote-server",
 }
 CONFIG_KEYS = {
     "$schema",

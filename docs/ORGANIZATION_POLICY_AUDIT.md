@@ -1,14 +1,14 @@
 # Organization repository policy audit
 
 `Organization Policy Audit` is the read-only hosted-settings control for the
-four release-capable Camellia repositories. The workflow runs every Monday at
+five release-capable Camellia repositories. The workflow runs every Monday at
 03:17 UTC and can also be dispatched manually.
 
 ## Authority
 
 The workflow mints a short-lived token from the Camellia Nexus Release Manager
 App. The token is limited to `.github`, `nexus`, `nexus-management-server`,
-`remote-client`, and `remote-management-server` with:
+`remote-client`, `remote-management-server`, and `remote-server` with:
 
 - Administration read;
 - Contents read;

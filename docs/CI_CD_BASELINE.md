@@ -94,7 +94,7 @@ and release-environment assumptions. The reviewed expectations are machine
 readable in
 [`config/repository-policies.json`](../config/repository-policies.json).
 `Organization Policy Audit` runs weekly or on demand with a read-oriented App
-token, compares all four release repositories, retains JSON/Markdown evidence,
+token, compares all five release repositories, retains JSON/Markdown evidence,
 and creates or updates one central `policy-drift` issue. A compliant run closes
 the resolved issue. The audit never changes repository protection, environment,
 certificate or secret state silently. See the

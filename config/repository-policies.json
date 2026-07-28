@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
   "schema_version": 1,
-  "policy_revision": "2026-07-28.1",
+  "policy_revision": "2026-07-28.2",
   "organization": "camellia-computing",
   "last_reviewed_on": "2026-07-28",
   "repositories": [
@@ -82,6 +82,26 @@
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml"
+      ],
+      "release_review_team": "remote",
+      "release_deployment_policies": [
+        {
+          "name": "main",
+          "type": "branch"
+        }
+      ]
+    },
+    {
+      "name": "remote-server",
+      "visibility": "public",
+      "required_status_checks": [
+        "CI / Required"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
         ".github/workflows/release.yml"
       ],
