@@ -28,7 +28,8 @@ if (-not $IsWindows) {
 $requiredCommands = @(
     'New-SelfSignedCertificate',
     'Export-Certificate',
-    'Export-PfxCertificate'
+    'Export-PfxCertificate',
+    'Get-PfxData'
 )
 foreach ($command in $requiredCommands) {
     if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
@@ -59,10 +60,7 @@ try {
         -HashAlgorithm SHA256 `
         -KeyExportPolicy Exportable `
         -KeyUsage CertSign, CRLSign, DigitalSignature `
-        -TextExtension @(
-            '2.5.29.19={critical}{text}ca=true&pathlength=0',
-            '2.5.29.15={critical}{text}keyCertSign&cRLSign&digitalSignature'
-        ) `
+        -TextExtension @('2.5.29.19={critical}{text}ca=true&pathlength=0') `
         -NotAfter (Get-Date).AddYears($RootValidityYears) `
         -CertStoreLocation 'Cert:\CurrentUser\My'
 
@@ -78,6 +76,43 @@ try {
         -KeyUsage DigitalSignature `
         -NotAfter (Get-Date).AddMonths($LeafValidityMonths) `
         -CertStoreLocation 'Cert:\CurrentUser\My'
+
+    $rootConstraints = @(
+        $root.Extensions | Where-Object {
+            $_ -is [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]
+        }
+    )
+    $rootKeyUsage = @(
+        $root.Extensions | Where-Object {
+            $_ -is [System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]
+        }
+    )
+    $leafCodeSigningEku = @(
+        $leaf.Extensions |
+            Where-Object {
+                $_ -is [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]
+            } |
+            ForEach-Object { $_.EnhancedKeyUsages } |
+            Where-Object { $_.Value -eq '1.3.6.1.5.5.7.3.3' }
+    )
+    if ($rootConstraints.Count -ne 1 -or
+        -not $rootConstraints[0].CertificateAuthority -or
+        $rootConstraints[0].HasPathLengthConstraint -eq $false -or
+        $rootConstraints[0].PathLengthConstraint -ne 0) {
+        throw 'The generated root does not have the required CA path-length-zero constraint.'
+    }
+    if ($rootKeyUsage.Count -ne 1 -or
+        -not $rootKeyUsage[0].KeyUsages.HasFlag(
+            [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::KeyCertSign
+        ) -or
+        -not $rootKeyUsage[0].KeyUsages.HasFlag(
+            [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::CrlSign
+        )) {
+        throw 'The generated root does not have the required certificate/CRL signing usages.'
+    }
+    if ($leafCodeSigningEku.Count -ne 1) {
+        throw 'The generated leaf does not have the required code-signing EKU.'
+    }
 
     $rootCer = Join-Path $outputPath 'camellia-private-code-signing-root.cer'
     $rootPfx = Join-Path $outputPath 'camellia-private-code-signing-root-backup.pfx'
@@ -95,11 +130,46 @@ try {
         -Cert $leaf `
         -FilePath $leafPfx `
         -Password $leafPassword `
-        -ChainOption EndEntityCertOnly | Out-Null
+        -ChainOption BuildChain | Out-Null
+    $exportedLeafPfx = Get-PfxData -FilePath $leafPfx -Password $leafPassword
+    $exportedLeaves = @($exportedLeafPfx.EndEntityCertificates | Where-Object { $_ })
+    $exportedChain = @($exportedLeafPfx.OtherCertificates | Where-Object { $_ })
+    if ($exportedLeaves.Count -ne 1 -or
+        $exportedLeaves[0].Thumbprint -ne $leaf.Thumbprint) {
+        throw 'The exported code-signing PFX does not contain the exact leaf identity.'
+    }
+    if ($root.Thumbprint -notin @(
+        $exportedChain | ForEach-Object { $_.Thumbprint }
+    )) {
+        throw 'The exported code-signing PFX does not contain its private verification root.'
+    }
+    if (@($exportedChain | Where-Object { $_.HasPrivateKey }).Count -ne 0) {
+        throw 'The exported code-signing PFX unexpectedly contains a chain private key.'
+    }
+
+    $identityPath = Join-Path $outputPath 'camellia-private-code-signing-identity.json'
+    $identity = [ordered]@{
+        schemaVersion = 1
+        platform = 'windows'
+        distributionTrust = 'private-trust'
+        subject = $leaf.Subject
+        issuer = $leaf.Issuer
+        serialNumber = $leaf.SerialNumber
+        notBefore = $leaf.NotBefore.ToUniversalTime().ToString('O')
+        notAfter = $leaf.NotAfter.ToUniversalTime().ToString('O')
+        certificateSha256 = $leaf.GetCertHashString(
+            [System.Security.Cryptography.HashAlgorithmName]::SHA256
+        ).ToUpperInvariant()
+        nativeSha1Thumbprint = $leaf.Thumbprint.ToUpperInvariant()
+    }
+    $identity |
+        ConvertTo-Json |
+        Set-Content -LiteralPath $identityPath -Encoding utf8NoBOM
 
     Write-Host "Created private signing material in: $outputPath"
     Write-Host "Root thumbprint: $($root.Thumbprint)"
     Write-Host "Leaf thumbprint: $($leaf.Thumbprint)"
+    Write-Host "Public identity metadata: $identityPath"
     Write-Warning 'Keep both PFX files and their passwords offline. Install only the public root CER on explicitly managed test machines.'
 }
 finally {
