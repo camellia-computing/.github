@@ -95,6 +95,8 @@ Gatekeeper trust.
 The standard repository interface is:
 
 - variable `APPLE_SIGNING_IDENTITY`;
+- variable `APPLE_SIGNING_CERTIFICATE_SHA256` containing the canonical
+  uppercase leaf fingerprint;
 - secrets `APPLE_CERTIFICATE` and `APPLE_CERTIFICATE_PASSWORD`;
 - where the workflow supports both public and private identities, variable
   `APPLE_SIGNING_TRUST_MODE`;
@@ -147,6 +149,8 @@ public release. When enabled, the complete group is:
 - secret `ANDROID_SIGNING_KEY`;
 - secrets `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, and
   `ANDROID_ALIAS`.
+- variable `ANDROID_SIGNING_CERTIFICATE_SHA256` containing the canonical
+  uppercase update-certificate fingerprint.
 
 Back up the production keystore and passwords in separate controlled locations.
 Losing the signing identity can prevent future updates.
@@ -160,7 +164,8 @@ not describe an unsigned IPA as directly installable.
 
 Remote Client implements a fail-closed signed path for App Store Connect,
 release-testing/Ad Hoc, development and enterprise profiles. It verifies the
-P12 identity, certificate/profile membership, expiry, Team ID,
+P12 identity against `IOS_SIGNING_CERTIFICATE_SHA256`, certificate/profile
+membership, expiry, Team ID,
 `com.camellia.remote` bundle ID, distribution type and final embedded
 signature/profile/entitlements. The iOS group is independent from the macOS
 Developer ID group.

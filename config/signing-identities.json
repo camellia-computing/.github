@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/signing-identities.schema.json",
   "schema_version": 1,
-  "registry_revision": "2026-07-28.2",
+  "registry_revision": "2026-07-28.3",
   "organization": "camellia-computing",
   "last_reviewed_on": "2026-07-28",
   "identities": [
@@ -52,6 +52,7 @@
       "variable_names": [
         "APPLE_API_ISSUER",
         "APPLE_API_KEY",
+        "APPLE_SIGNING_CERTIFICATE_SHA256",
         "APPLE_SIGNING_IDENTITY",
         "APPLE_SIGNING_TRUST_MODE"
       ],
