@@ -82,8 +82,12 @@ pwsh -NoProfile -File .\scripts\New-CamelliaWindowsPrivateCodeSigningCertificate
 ```
 
 The script exports a public root CER, a root backup PFX, a leaf public CER, and a
-leaf code-signing PFX. Keep both PFX files and their passwords offline. Install
-only the public root CER on explicitly managed test endpoints.
+leaf code-signing PFX containing its verification chain. It also writes
+`camellia-private-code-signing-identity.json` with only the public subject,
+issuer, validity, canonical SHA-256 fingerprint and Windows-native SHA-1
+thumbprint required by the signing registry. Keep both PFX files and their
+passwords offline. Install only the public root CER on explicitly managed test
+endpoints.
 
 ### macOS
 
