@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/camellia-computing/.github/blob/main/SECURITY.md
+    about: Do not report vulnerabilities in a public issue.
+  - name: Support policy
+    url: https://github.com/camellia-computing/.github/blob/main/SUPPORT.md
+    about: Review project status and support boundaries before filing an issue.

@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible, non-security defect
+title: "[Bug]: "
+labels: ["type: bug", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not disclose vulnerabilities, credentials, or private data here. Follow SECURITY.md instead."
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Use an exact version, tag, or full commit SHA.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows 11, macOS, Linux, Android, iOS, Web, Server/Container, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Remove tokens, keys, personal data, and production records.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized diagnostics
+      description: Logs, screenshots, or environment details with secrets and personal data removed.
