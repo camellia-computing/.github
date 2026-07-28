@@ -47,6 +47,7 @@ jobs:
             nexus-management-server
             remote-client
             remote-management-server
+            remote-server
           permission-administration: read
           permission-contents: read
           permission-issues: write

@@ -28,7 +28,7 @@ verified Remote publication, and the read-only organization policy audit.
 | Pull requests | Read and write |
 | Metadata | Read-only (GitHub-required) |
 | Organization permissions | None |
-| Installation scope | Selected repositories only: `.github`, `nexus`, `nexus-management-server`, `remote-client`, `remote-management-server` |
+| Installation scope | Selected repositories only: `.github`, `nexus`, `nexus-management-server`, `remote-client`, `remote-management-server`, `remote-server` |
 | Actions / Workflows | None |
 
 Each release repository needs:
@@ -54,10 +54,10 @@ The App is consumed by Nexus at:
   machine;
 - `.github/workflows/publish-release.yml` for release publication.
 
-Remote Client and Remote Management consume it in `.github/workflows/main.yml`
-for hosted-policy validation and `.github/workflows/release.yml` for
-App-authored, read-back-verified immutable Releases. Candidate mode never
-receives the App key or token.
+Remote Client, Remote Server, and Remote Management consume it in
+`.github/workflows/main.yml` for hosted-policy validation and
+`.github/workflows/release.yml` for App-authored, read-back-verified immutable
+Releases. Candidate mode never receives the App key or token.
 
 The `.github` repository uses `RELEASE_APP_CLIENT_ID` and
 `RELEASE_APP_PRIVATE_KEY` to run the weekly
@@ -67,7 +67,7 @@ fixed reviewed identity.
 
 Private keys are rotated in the GitHub App settings, then updated in the
 selected-repository organization secret before the old key is revoked. Every
-rotation ends with a successful `Main` run in all four release repositories and
+rotation ends with a successful `Main` run in all five release repositories and
 a compliant organization audit.
 
 ## Optional cross-repository reader
