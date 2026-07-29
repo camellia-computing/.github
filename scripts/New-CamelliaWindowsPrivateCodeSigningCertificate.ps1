@@ -37,6 +37,25 @@ foreach ($command in $requiredCommands) {
     }
 }
 
+$bundleGenerator = Join-Path $PSScriptRoot 'create-github-signing-bundle.py'
+$bundleGeneratorItem = Get-Item -LiteralPath $bundleGenerator -Force -ErrorAction SilentlyContinue
+if ($null -eq $bundleGeneratorItem) {
+    throw "The GitHub Actions bundle generator is unavailable or unsafe: $bundleGenerator"
+}
+if ($bundleGeneratorItem.PSIsContainer -or
+    -not [string]::IsNullOrEmpty([string] $bundleGeneratorItem.LinkType)) {
+    throw "The GitHub Actions bundle generator must be a regular file: $bundleGenerator"
+}
+$pythonCommand = Get-Command python -CommandType Application -ErrorAction SilentlyContinue
+$pythonArguments = @()
+if ($null -eq $pythonCommand) {
+    $pythonCommand = Get-Command py -CommandType Application -ErrorAction SilentlyContinue
+    $pythonArguments = @('-3')
+}
+if ($null -eq $pythonCommand) {
+    throw 'Python 3 is required to create the standardized GitHub Actions bundle.'
+}
+
 $resolvedParent = Resolve-Path -LiteralPath (Split-Path -Parent $OutputDirectory)
 $outputPath = Join-Path $resolvedParent.Path (Split-Path -Leaf $OutputDirectory)
 if (Test-Path -LiteralPath $outputPath) {
@@ -166,11 +185,43 @@ try {
         ConvertTo-Json |
         Set-Content -LiteralPath $identityPath -Encoding utf8NoBOM
 
+    $bundleInputDirectory = Join-Path $outputPath '.github-actions-input'
+    $bundlePasswordPath = Join-Path $bundleInputDirectory 'WINDOWS_CODESIGN_PFX_PASSWORD'
+    $null = New-Item -ItemType Directory -Path $bundleInputDirectory
+    try {
+        $leafPasswordText = [System.Net.NetworkCredential]::new('', $leafPassword).Password
+        if ([string]::IsNullOrEmpty($leafPasswordText)) {
+            throw 'Code-signing PFX password must not be empty.'
+        }
+        $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+        [System.IO.File]::WriteAllText($bundlePasswordPath, $leafPasswordText, $utf8NoBom)
+
+        & $pythonCommand.Source @pythonArguments $bundleGenerator $outputPath `
+            --platform windows `
+            --distribution-trust private-trust `
+            --identity-file $identityPath `
+            --variable "WINDOWS_CODESIGN_CERTIFICATE_SHA256=$($identity.certificateSha256)" `
+            --variable "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT=$($identity.nativeSha1Thumbprint)" `
+            --variable 'WINDOWS_SIGNING_TRUST_MODE=private-trust' `
+            --secret-base64 "WINDOWS_CODESIGN_PFX_BASE64=$leafPfx" `
+            --secret "WINDOWS_CODESIGN_PFX_PASSWORD=$bundlePasswordPath"
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to create the standardized GitHub Actions signing bundle.'
+        }
+    }
+    finally {
+        $leafPasswordText = $null
+        if (Test-Path -LiteralPath $bundleInputDirectory) {
+            Remove-Item -LiteralPath $bundleInputDirectory -Recurse -Force
+        }
+    }
+
     Write-Host "Created private signing material in: $outputPath"
     Write-Host "Root thumbprint: $($root.Thumbprint)"
     Write-Host "Leaf thumbprint: $($leaf.Thumbprint)"
     Write-Host "Public identity metadata: $identityPath"
-    Write-Warning 'Keep both PFX files and their passwords offline. Install only the public root CER on explicitly managed test machines.'
+    Write-Host "GitHub Actions configuration bundle: $(Join-Path $outputPath 'github-actions')"
+    Write-Warning 'Keep both PFX files and their passwords offline. Review the generated variables.env, then use its upload helper without printing secret files. Install only the public root CER on explicitly managed test machines.'
 }
 finally {
     if ($null -ne $leaf -and -not [string]::IsNullOrWhiteSpace($leaf.Thumbprint)) {
