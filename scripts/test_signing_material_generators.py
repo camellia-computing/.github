@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +17,8 @@ SCRIPTS = Path(__file__).parent
 P12_PASSWORD = "test-only-p12-password"
 GPG_PASSPHRASE = "test-only-gpg-passphrase"
 ANDROID_PASSWORD = "test-only-android-password"
+ANDROID_STORE_PASSWORD = "test-only-android-store-password"
+ANDROID_KEY_PASSWORD = "test-only-android-key-password"
 
 
 class SigningMaterialGeneratorTests(unittest.TestCase):
@@ -123,6 +127,92 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
                     "ANDROID_SIGNING_KEY",
                 },
                 ANDROID_PASSWORD,
+            )
+
+    @unittest.skipUnless(shutil.which("keytool"), "keytool is required")
+    def test_existing_android_keystore_preparation_preserves_update_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original_keystore = root / "historical-release.jks"
+            environment = {
+                **os.environ,
+                "CAMELLIA_TEST_ANDROID_STORE_PASSWORD": ANDROID_STORE_PASSWORD,
+                "CAMELLIA_TEST_ANDROID_KEY_PASSWORD": ANDROID_KEY_PASSWORD,
+            }
+            keytool = subprocess.run(
+                [
+                    "keytool",
+                    "-J-Duser.language=en",
+                    "-J-Duser.country=US",
+                    "-genkeypair",
+                    "-storetype",
+                    "JKS",
+                    "-keystore",
+                    str(original_keystore),
+                    "-storepass:env",
+                    "CAMELLIA_TEST_ANDROID_STORE_PASSWORD",
+                    "-keypass:env",
+                    "CAMELLIA_TEST_ANDROID_KEY_PASSWORD",
+                    "-alias",
+                    "historical-release",
+                    "-dname",
+                    "CN=Camellia Historical Android, O=Camellia Computing",
+                    "-keyalg",
+                    "RSA",
+                    "-keysize",
+                    "2048",
+                    "-sigalg",
+                    "SHA256withRSA",
+                    "-validity",
+                    "365",
+                    "-noprompt",
+                ],
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            if keytool.returncode:
+                self.fail(
+                    "could not create test Android update keystore:\n"
+                    f"stdout:\n{keytool.stdout}\nstderr:\n{keytool.stderr}"
+                )
+
+            output = root / "prepared"
+            self.run_script(
+                [
+                    str(SCRIPTS / "prepare-camellia-android-release-keystore.sh"),
+                    str(output),
+                    str(original_keystore),
+                    "historical-release",
+                ],
+                ANDROID_STORE_PASSWORD + "\n" + ANDROID_KEY_PASSWORD + "\n",
+            )
+            self.assertFalse((output / "camellia-android-release.keystore").exists())
+            self.assert_bundle(
+                output,
+                "android",
+                "platform-key",
+                {"ANDROID_SIGNING_CERTIFICATE_SHA256"},
+                {
+                    "ANDROID_ALIAS",
+                    "ANDROID_KEY_PASSWORD",
+                    "ANDROID_KEY_STORE_PASSWORD",
+                    "ANDROID_SIGNING_KEY",
+                },
+                ANDROID_STORE_PASSWORD,
+            )
+            identity = json.loads(
+                (output / "camellia-android-release-identity.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(identity["alias"], "historical-release")
+            self.assertEqual(identity["keystoreType"], "JKS")
+            self.assertRegex(identity["certificateSha256"], r"^[0-9A-F]{64}$")
+            self.assertEqual(
+                base64.b64decode(
+                    (output / "github-actions" / "secrets" / "ANDROID_SIGNING_KEY").read_bytes()
+                ),
+                original_keystore.read_bytes(),
             )
 
     @unittest.skipUnless(shutil.which("openssl"), "openssl is required")

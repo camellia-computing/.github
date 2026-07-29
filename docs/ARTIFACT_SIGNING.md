@@ -239,6 +239,24 @@ If an existing package has ever been signed, re-upload its original reviewed
 keystore and credentials instead; generating a replacement key breaks update
 continuity and must not be presented as a rotation.
 
+For an existing Android update identity, prepare the original reviewed
+keystore without modifying or replacing it:
+
+```bash
+bash scripts/prepare-camellia-android-release-keystore.sh \
+  "$HOME/Secure/camellia-android-existing-update-key" \
+  /controlled-inputs/original-release.keystore \
+  original-release-alias
+```
+
+The preparation command verifies the supplied store and key passwords through
+a non-mutating certificate request, derives the exact certificate SHA-256, and
+writes public identity information plus the same protected `github-actions/`
+bundle. It supports historical JKS and PKCS#12 stores, including distinct JKS
+store and key passwords. The original keystore remains untouched; keep its
+separate controlled backup before uploading the reviewed bundle only to
+`remote-client`.
+
 ### iOS and iPadOS
 
 An unsigned `.xcarchive` or `-unsigned.ipa` is a re-signing input only. Normal
