@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/camellia-computing/.github/blob/main/schemas/repository-policies.schema.json",
-  "title": "Camellia audited repository policies",
+  "$id": "https://example.invalid/schemas/repository-policies.schema.json",
+  "title": "Organization and repository policy baseline",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,6 +9,7 @@
     "policy_revision",
     "organization",
     "last_reviewed_on",
+    "organization_controls",
     "repositories"
   ],
   "properties": {
@@ -16,18 +17,73 @@
       "type": "string"
     },
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "policy_revision": {
       "type": "string",
       "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}\\.[1-9][0-9]*$"
     },
     "organization": {
-      "const": "camellia-computing"
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
     },
     "last_reviewed_on": {
       "type": "string",
       "format": "date"
+    },
+    "organization_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_repository_permission",
+        "members_can_change_repo_visibility",
+        "members_can_create_private_pages",
+        "members_can_create_public_pages",
+        "members_can_create_repositories",
+        "members_can_delete_repositories",
+        "minimum_owner_count",
+        "outside_collaborator_count",
+        "pending_invitation_count",
+        "two_factor_requirement_enabled"
+      ],
+      "properties": {
+        "default_repository_permission": {
+          "enum": [
+            "none",
+            "read",
+            "write",
+            "admin"
+          ]
+        },
+        "members_can_change_repo_visibility": {
+          "type": "boolean"
+        },
+        "members_can_create_private_pages": {
+          "type": "boolean"
+        },
+        "members_can_create_public_pages": {
+          "type": "boolean"
+        },
+        "members_can_create_repositories": {
+          "type": "boolean"
+        },
+        "members_can_delete_repositories": {
+          "type": "boolean"
+        },
+        "minimum_owner_count": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "outside_collaborator_count": {
+          "const": 0
+        },
+        "pending_invitation_count": {
+          "const": 0
+        },
+        "two_factor_requirement_enabled": {
+          "const": true
+        }
+      }
     },
     "repositories": {
       "type": "array",
@@ -36,23 +92,72 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
+          "logical_id",
           "name",
+          "product",
+          "profile",
           "visibility",
+          "access_teams",
           "required_status_checks",
           "required_paths",
-          "release_review_team",
-          "release_deployment_policies"
+          "release"
         ],
         "properties": {
-          "name": {
+          "logical_id": {
             "type": "string",
             "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^(?:\\.github|[a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "product": {
+            "enum": [
+              "organization",
+              "remote",
+              "nexus"
+            ]
+          },
+          "profile": {
+            "enum": [
+              "governance",
+              "library",
+              "release-client",
+              "release-service"
+            ]
           },
           "visibility": {
             "enum": [
               "public",
               "private"
             ]
+          },
+          "access_teams": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "permission",
+                "slug"
+              ],
+              "properties": {
+                "permission": {
+                  "enum": [
+                    "pull",
+                    "triage",
+                    "push",
+                    "maintain",
+                    "admin"
+                  ]
+                },
+                "slug": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                }
+              }
+            }
           },
           "required_status_checks": {
             "type": "array",
@@ -72,34 +177,51 @@
               "minLength": 1
             }
           },
-          "release_review_team": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-          },
-          "release_deployment_policies": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "name",
-                "type"
-              ],
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "type": {
-                  "enum": [
-                    "branch",
-                    "tag"
-                  ]
+          "release": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "review_team",
+                  "deployment_policies"
+                ],
+                "properties": {
+                  "review_team": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "deployment_policies": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "name",
+                        "type"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "type": {
+                          "enum": [
+                            "branch",
+                            "tag"
+                          ]
+                        }
+                      }
+                    }
+                  }
                 }
               }
-            }
+            ]
           }
         }
       }

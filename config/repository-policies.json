@@ -1,13 +1,60 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
-  "schema_version": 1,
-  "policy_revision": "2026-07-28.2",
+  "schema_version": 2,
+  "policy_revision": "2026-07-29.1",
   "organization": "camellia-computing",
-  "last_reviewed_on": "2026-07-28",
+  "last_reviewed_on": "2026-07-29",
+  "organization_controls": {
+    "default_repository_permission": "none",
+    "members_can_change_repo_visibility": false,
+    "members_can_create_private_pages": false,
+    "members_can_create_public_pages": false,
+    "members_can_create_repositories": false,
+    "members_can_delete_repositories": false,
+    "minimum_owner_count": 2,
+    "outside_collaborator_count": 0,
+    "pending_invitation_count": 0,
+    "two_factor_requirement_enabled": true
+  },
   "repositories": [
     {
+      "logical_id": "governance",
+      "name": ".github",
+      "product": "organization",
+      "profile": "governance",
+      "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "nexus"
+        },
+        {
+          "permission": "maintain",
+          "slug": "remote"
+        }
+      ],
+      "required_status_checks": [
+        "Policy / Required"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/organization-audit.yml",
+        ".github/workflows/policy.yml"
+      ],
+      "release": null
+    },
+    {
+      "logical_id": "nexus-client",
       "name": "nexus",
+      "product": "nexus",
+      "profile": "release-client",
       "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "nexus"
+        }
+      ],
       "required_status_checks": [
         "Gate",
         "Public API"
@@ -18,21 +65,32 @@
         ".github/workflows/publish-release.yml",
         ".github/workflows/release-manager.yml"
       ],
-      "release_review_team": "nexus",
-      "release_deployment_policies": [
-        {
-          "name": "main",
-          "type": "branch"
-        },
-        {
-          "name": "v*",
-          "type": "tag"
-        }
-      ]
+      "release": {
+        "review_team": "nexus",
+        "deployment_policies": [
+          {
+            "name": "main",
+            "type": "branch"
+          },
+          {
+            "name": "v*",
+            "type": "tag"
+          }
+        ]
+      }
     },
     {
+      "logical_id": "nexus-management",
       "name": "nexus-management-server",
+      "product": "nexus",
+      "profile": "release-service",
       "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "nexus"
+        }
+      ],
       "required_status_checks": [
         "Gate",
         "Public API"
@@ -43,21 +101,32 @@
         ".github/workflows/publish-release.yml",
         ".github/workflows/release-manager.yml"
       ],
-      "release_review_team": "nexus",
-      "release_deployment_policies": [
-        {
-          "name": "main",
-          "type": "branch"
-        },
-        {
-          "name": "v*",
-          "type": "tag"
-        }
-      ]
+      "release": {
+        "review_team": "nexus",
+        "deployment_policies": [
+          {
+            "name": "main",
+            "type": "branch"
+          },
+          {
+            "name": "v*",
+            "type": "tag"
+          }
+        ]
+      }
     },
     {
+      "logical_id": "remote-client",
       "name": "remote-client",
+      "product": "remote",
+      "profile": "release-client",
       "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "remote"
+        }
+      ],
       "required_status_checks": [
         "CI / Required"
       ],
@@ -66,17 +135,28 @@
         ".github/workflows/main.yml",
         ".github/workflows/release.yml"
       ],
-      "release_review_team": "remote",
-      "release_deployment_policies": [
-        {
-          "name": "main",
-          "type": "branch"
-        }
-      ]
+      "release": {
+        "review_team": "remote",
+        "deployment_policies": [
+          {
+            "name": "main",
+            "type": "branch"
+          }
+        ]
+      }
     },
     {
+      "logical_id": "remote-management",
       "name": "remote-management-server",
+      "product": "remote",
+      "profile": "release-service",
       "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "remote"
+        }
+      ],
       "required_status_checks": [
         "CI / Required"
       ],
@@ -85,17 +165,49 @@
         ".github/workflows/main.yml",
         ".github/workflows/release.yml"
       ],
-      "release_review_team": "remote",
-      "release_deployment_policies": [
-        {
-          "name": "main",
-          "type": "branch"
-        }
-      ]
+      "release": {
+        "review_team": "remote",
+        "deployment_policies": [
+          {
+            "name": "main",
+            "type": "branch"
+          }
+        ]
+      }
     },
     {
-      "name": "remote-server",
+      "logical_id": "remote-protocol",
+      "name": "remote-protocol",
+      "product": "remote",
+      "profile": "library",
       "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "remote"
+        }
+      ],
+      "required_status_checks": [
+        "CI / Required"
+      ],
+      "required_paths": [
+        ".github/CODEOWNERS",
+        ".github/workflows/ci.yml"
+      ],
+      "release": null
+    },
+    {
+      "logical_id": "remote-server",
+      "name": "remote-server",
+      "product": "remote",
+      "profile": "release-service",
+      "visibility": "public",
+      "access_teams": [
+        {
+          "permission": "maintain",
+          "slug": "remote"
+        }
+      ],
       "required_status_checks": [
         "CI / Required"
       ],
@@ -105,13 +217,15 @@
         ".github/workflows/main.yml",
         ".github/workflows/release.yml"
       ],
-      "release_review_team": "remote",
-      "release_deployment_policies": [
-        {
-          "name": "main",
-          "type": "branch"
-        }
-      ]
+      "release": {
+        "review_team": "remote",
+        "deployment_policies": [
+          {
+            "name": "main",
+            "type": "branch"
+          }
+        ]
+      }
     }
   ]
 }

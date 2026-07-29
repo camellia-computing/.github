@@ -1,67 +1,74 @@
-# Organization repository policy audit
+# Organization policy audit
 
 `Organization Policy Audit` is the read-only hosted-settings control for the
-five release-capable Camellia repositories. The workflow runs every Monday at
-03:17 UTC and can also be dispatched manually.
+organization and every managed repository. It runs each Monday at 03:17 UTC
+and may be dispatched manually.
 
 ## Authority
 
-The workflow mints a short-lived token from the Camellia Nexus Release Manager
-App. The token is limited to `.github`, `nexus`, `nexus-management-server`,
-`remote-client`, `remote-management-server`, and `remote-server` with:
+The workflow uses a dedicated Policy Auditor GitHub App. It is separate from
+the Release Manager and has no Contents, Pull requests, Actions, Workflows,
+environment, secret or repository-setting write permission. Configure the
+complete group in the governance repository:
 
-- Administration read;
-- Contents read;
-- Issues read/write, used only for the central drift record;
-- Metadata read.
+- variable `POLICY_AUDIT_APP_CLIENT_ID`;
+- variable `POLICY_AUDIT_APP_SLUG`;
+- secret `POLICY_AUDIT_APP_PRIVATE_KEY`.
 
-The App has no Actions or Workflows permission. Its successful multi-repository
-token mint also proves that the selected-repository installation covers the
-complete audited scope.
-
-The `.github` repository requires variable `RELEASE_APP_CLIENT_ID` and secret
-`RELEASE_APP_PRIVATE_KEY`. The workflow verifies the returned App slug is
-exactly `camellia-nexus-release-manager`.
+The App needs repository Administration read, Contents read, Metadata read and
+Issues write, plus Members read and Organization administration read. Issues
+write is used only to maintain the central drift issue. Install it on every
+repository resolved from the logical policy config. A partial credential group,
+unexpected App slug or incomplete installation is a failed audit.
 
 ## Reviewed controls
 
-[`config/repository-policies.json`](../config/repository-policies.json) is the
-versioned expectation. For each target repository, automation verifies:
+[`repository-policies.json`](../config/repository-policies.json) is the
+versioned expectation and the single physical repository-name map. It contains
+organization controls and four repository profiles: governance, library,
+release client and release service.
 
-- the exact default branch and squash-only merge settings;
-- Dependabot security updates, secret scanning, and push protection;
-- enabled immutable Releases;
-- enabled Actions, server-side full-SHA pinning, default read-only workflow
-  permissions, and no workflow authority to approve pull requests;
-- presence of CODEOWNERS, the default-branch policy monitor, and release
-  workflows;
-- active, bypass-free default-branch and release-tag rulesets;
-- current-head approval, stale-review dismissal, CODEOWNERS, conversation
-  resolution, strict required checks, linear history, and CodeQL thresholds;
-- a `release` environment with non-self review by the product team and the
-  exact allowed branch/tag policies.
+Organization checks cover:
 
-Changing either the hosted policy or the expected configuration requires a
-reviewed pull request and a `policy_revision` increment. A stricter hosted
-setting is still surfaced as drift so it can be reviewed and made explicit
-rather than silently changing the operational contract.
+- mandatory 2FA and a minimum of two owners without naming individuals;
+- no default repository access;
+- disabled member repository, Pages, deletion and visibility changes;
+- no outside collaborators or pending invitations.
 
-## Evidence and remediation
+Every repository is checked for:
 
-Each run retains `audit-report.json` and `audit-report.md` for 30 days. Drift
-creates or updates one issue titled
-`[automation] Repository policy drift` in `.github`; a later compliant run
-closes it. The workflow then fails so the drift is visible in Actions and
-monitoring.
+- visibility, default branch, squash-only merge and branch cleanup;
+- exact team access;
+- Dependabot security updates, secret scanning and push protection;
+- read-only default Actions authority and server-side full-SHA pinning;
+- required policy/workflow paths;
+- bypass-free branch rules, current-head approval, CODEOWNERS, resolved
+  conversations, linear history, strict required checks and CodeQL threshold.
 
-The audit never edits rulesets, environments, repository settings, certificates
-or secrets. Remediation is a separate reviewed action:
+Release profiles additionally require immutable Releases, protected release
+tags and a `release` environment with non-self review and exact branch/tag
+deployment policies. Governance and library profiles must not carry dormant
+release controls.
 
-1. determine whether hosted state or the reviewed baseline is wrong;
-2. update only the intended side;
-3. record owner, reason and evidence in the pull request or drift issue;
-4. rerun the audit;
-5. close only after the machine report is compliant.
+## Portability and evidence
 
-If the App token cannot be minted, treat it as authority/configuration drift.
-Do not replace it with a personal token or grant broader App permissions.
+Repository names are resolved from logical IDs at runtime. Change a physical
+name once in the policy file, update product-owned references through reviewed
+pull requests, then run:
+
+```bash
+POLICY_AUDIT_ORGANIZATION=example-owner \
+  python3 scripts/audit_repository_policies.py
+```
+
+The owner override is an audit aid; it does not mutate either organization.
+
+Each hosted run retains machine-readable JSON and readable Markdown for 30
+days. Drift creates or updates one issue in the governance repository; a later
+compliant run closes it. Reports remain workflow artifacts and are not
+committed.
+
+The audit never remediates settings. Correct either hosted state or the
+reviewed config in a separately reviewed action, rerun the audit, and retain
+the pull request or issue as evidence. Do not substitute a personal token or
+grant the auditor write access to make drift disappear.

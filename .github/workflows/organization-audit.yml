@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   audit:
-    name: Audit release repositories
+    name: Audit organization and repositories
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -22,15 +22,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve audited repository scope
+        id: scope
+        run: python3 scripts/resolve_repository_scope.py --github-output "$GITHUB_OUTPUT"
+
       - name: Require audit App configuration
         id: configuration
         shell: bash
         env:
-          CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          APP_SLUG: ${{ vars.POLICY_AUDIT_APP_SLUG }}
+          CLIENT_ID: ${{ vars.POLICY_AUDIT_APP_CLIENT_ID }}
+          PRIVATE_KEY: ${{ secrets.POLICY_AUDIT_APP_PRIVATE_KEY }}
         run: |
-          [[ -n "$CLIENT_ID" && -n "$PRIVATE_KEY" ]] || {
-            echo 'Configure the organization audit App variable and private-key secret' >&2
+          [[ -n "$APP_SLUG" && -n "$CLIENT_ID" && -n "$PRIVATE_KEY" ]] || {
+            echo 'Configure the complete Policy Auditor App credential group' >&2
             exit 1
           }
 
@@ -38,27 +43,24 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v2.2.1
         with:
-          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.POLICY_AUDIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POLICY_AUDIT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: |
-            .github
-            nexus
-            nexus-management-server
-            remote-client
-            remote-management-server
-            remote-server
+          repositories: ${{ steps.scope.outputs.repositories }}
           permission-administration: read
           permission-contents: read
           permission-issues: write
+          permission-members: read
           permission-metadata: read
+          permission-organization-administration: read
 
       - name: Verify audit App identity
         shell: bash
         env:
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          EXPECTED_APP_SLUG: ${{ vars.POLICY_AUDIT_APP_SLUG }}
         run: |
-          [[ "$APP_SLUG" == camellia-nexus-release-manager ]] || {
+          [[ "$APP_SLUG" == "$EXPECTED_APP_SLUG" ]] || {
             echo "Unexpected audit App identity: $APP_SLUG" >&2
             exit 1
           }

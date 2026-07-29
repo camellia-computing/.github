@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit release-capable repositories against the reviewed organization policy."""
+"""Audit organization and repository settings against the reviewed policy."""
 
 from __future__ import annotations
 
@@ -17,30 +17,45 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-TARGET_REPOSITORIES = {
-    "nexus",
-    "nexus-management-server",
-    "remote-client",
-    "remote-management-server",
-    "remote-server",
-}
 CONFIG_KEYS = {
     "$schema",
     "schema_version",
     "policy_revision",
     "organization",
     "last_reviewed_on",
+    "organization_controls",
     "repositories",
 }
+ORGANIZATION_CONTROL_KEYS = {
+    "default_repository_permission",
+    "members_can_change_repo_visibility",
+    "members_can_create_private_pages",
+    "members_can_create_public_pages",
+    "members_can_create_repositories",
+    "members_can_delete_repositories",
+    "minimum_owner_count",
+    "outside_collaborator_count",
+    "pending_invitation_count",
+    "two_factor_requirement_enabled",
+}
 REPOSITORY_POLICY_KEYS = {
+    "logical_id",
     "name",
+    "product",
+    "profile",
     "visibility",
+    "access_teams",
     "required_status_checks",
     "required_paths",
-    "release_review_team",
-    "release_deployment_policies",
+    "release",
 }
+ACCESS_TEAM_KEYS = {"permission", "slug"}
+RELEASE_POLICY_KEYS = {"review_team", "deployment_policies"}
 DEPLOYMENT_POLICY_KEYS = {"name", "type"}
+PROFILES = {"governance", "library", "release-client", "release-service"}
+PRODUCTS = {"organization", "nexus", "remote"}
+RELEASE_PROFILES = {"release-client", "release-service"}
+TEAM_PERMISSIONS = {"pull", "triage", "push", "maintain", "admin"}
 EXPECTED_BRANCH_RULE_TYPES = {
     "code_scanning",
     "deletion",
@@ -70,7 +85,7 @@ class GitHubAPI:
             headers={
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {self._token}",
-                "User-Agent": "camellia-repository-policy-audit",
+                "User-Agent": "organization-repository-policy-audit",
                 "X-GitHub-Api-Version": API_VERSION,
             },
             method="GET",
@@ -148,10 +163,11 @@ def validate_config(config: dict[str, Any]) -> None:
             f"policy fields differ: expected {sorted(CONFIG_KEYS)}, "
             f"found {sorted(config)}"
         )
-    if config.get("schema_version") != 1:
-        raise ValueError("schema_version must be 1")
-    if config.get("organization") != "camellia-computing":
-        raise ValueError("organization must be camellia-computing")
+    if config.get("schema_version") != 2:
+        raise ValueError("schema_version must be 2")
+    organization = require_string(config, "organization")
+    if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?", organization):
+        raise ValueError("organization must be a valid GitHub owner")
     revision = require_string(config, "policy_revision")
     if not re.fullmatch(r"20\d{2}-\d{2}-\d{2}\.[1-9]\d*", revision):
         raise ValueError("policy_revision must use YYYY-MM-DD.N")
@@ -161,19 +177,83 @@ def validate_config(config: dict[str, Any]) -> None:
     if revision.split(".", 1)[0] != reviewed.isoformat():
         raise ValueError("policy_revision date must equal last_reviewed_on")
 
+    organization_controls = config.get("organization_controls")
+    if (
+        not isinstance(organization_controls, dict)
+        or set(organization_controls) != ORGANIZATION_CONTROL_KEYS
+    ):
+        raise ValueError("organization_controls has unexpected fields")
+    if organization_controls.get("default_repository_permission") not in {
+        "none",
+        "read",
+        "write",
+        "admin",
+    }:
+        raise ValueError("organization_controls.default_repository_permission is invalid")
+    for field in (
+        "members_can_change_repo_visibility",
+        "members_can_create_private_pages",
+        "members_can_create_public_pages",
+        "members_can_create_repositories",
+        "members_can_delete_repositories",
+        "two_factor_requirement_enabled",
+    ):
+        if not isinstance(organization_controls.get(field), bool):
+            raise ValueError(f"organization_controls.{field} must be boolean")
+    minimum_owner_count = organization_controls.get("minimum_owner_count")
+    if (
+        not isinstance(minimum_owner_count, int)
+        or isinstance(minimum_owner_count, bool)
+        or minimum_owner_count < 2
+    ):
+        raise ValueError("organization_controls.minimum_owner_count must be >= 2")
+    for field in ("outside_collaborator_count", "pending_invitation_count"):
+        value = organization_controls.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ValueError(f"organization_controls.{field} must be non-negative")
+
     repositories = config.get("repositories")
     if not isinstance(repositories, list) or not repositories:
         raise ValueError("repositories must be a non-empty array")
     names: list[str] = []
+    logical_ids: list[str] = []
     for policy in repositories:
         if not isinstance(policy, dict) or set(policy) != REPOSITORY_POLICY_KEYS:
             raise ValueError("repository policy has unexpected fields")
+        logical_id = require_string(policy, "logical_id")
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", logical_id):
+            raise ValueError(f"invalid repository logical id: {logical_id}")
+        logical_ids.append(logical_id)
         name = require_string(policy, "name")
-        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name):
+        if not re.fullmatch(r"(?:\.github|[a-z0-9]+(?:-[a-z0-9]+)*)", name):
             raise ValueError(f"invalid repository name: {name}")
         names.append(name)
+        product = require_string(policy, "product")
+        profile = require_string(policy, "profile")
+        if product not in PRODUCTS:
+            raise ValueError(f"{name} has invalid product: {product}")
+        if profile not in PROFILES:
+            raise ValueError(f"{name} has invalid profile: {profile}")
+        if (profile == "governance") != (product == "organization"):
+            raise ValueError(f"{name} governance profile/product pairing is invalid")
         if policy.get("visibility") not in {"public", "private"}:
             raise ValueError(f"{name} has invalid visibility")
+        access_teams = policy.get("access_teams")
+        if not isinstance(access_teams, list) or not access_teams:
+            raise ValueError(f"{name} requires at least one access team")
+        normalized_teams: list[tuple[str, str]] = []
+        for team in access_teams:
+            if not isinstance(team, dict) or set(team) != ACCESS_TEAM_KEYS:
+                raise ValueError(f"{name} has an invalid access team")
+            slug = require_string(team, "slug")
+            permission = require_string(team, "permission")
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
+                raise ValueError(f"{name} has an invalid access team slug")
+            if permission not in TEAM_PERMISSIONS:
+                raise ValueError(f"{name} has an invalid team permission")
+            normalized_teams.append((slug, permission))
+        if normalized_teams != sorted(set(normalized_teams)):
+            raise ValueError(f"{name} access teams must be sorted and unique")
         require_sorted_unique_strings(
             policy.get("required_status_checks"),
             f"{name}.required_status_checks",
@@ -182,10 +262,21 @@ def validate_config(config: dict[str, Any]) -> None:
             policy.get("required_paths"),
             f"{name}.required_paths",
         )
-        team = require_string(policy, "release_review_team")
+        release = policy.get("release")
+        if profile in RELEASE_PROFILES and not isinstance(release, dict):
+            raise ValueError(f"{name} release profile requires release controls")
+        if profile not in RELEASE_PROFILES and release is not None:
+            raise ValueError(f"{name} non-release profile cannot define release controls")
+        if release is None:
+            continue
+        if set(release) != RELEASE_POLICY_KEYS:
+            raise ValueError(f"{name} release policy has unexpected fields")
+        team = require_string(release, "review_team")
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", team):
             raise ValueError(f"{name} has an invalid release review team")
-        deployment_policies = policy.get("release_deployment_policies")
+        if team not in {item["slug"] for item in access_teams}:
+            raise ValueError(f"{name} release reviewer must have repository access")
+        deployment_policies = release.get("deployment_policies")
         if not isinstance(deployment_policies, list) or not deployment_policies:
             raise ValueError(f"{name} requires release deployment policies")
         normalized: list[tuple[str, str]] = []
@@ -205,11 +296,8 @@ def validate_config(config: dict[str, Any]) -> None:
 
     if names != sorted(set(names)):
         raise ValueError("repository policies must be sorted and unique")
-    if set(names) != TARGET_REPOSITORIES:
-        raise ValueError(
-            f"repository policy scope differs: expected {sorted(TARGET_REPOSITORIES)}, "
-            f"found {sorted(names)}"
-        )
+    if len(logical_ids) != len(set(logical_ids)):
+        raise ValueError("repository logical ids must be unique")
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -469,7 +557,7 @@ def audit_release_environment(
             repository,
             "release_environment.reviewers",
             normalized_reviewers,
-            [("Team", policy["release_review_team"])],
+            [("Team", policy["release"]["review_team"])],
         )
 
     policies = api.get(
@@ -490,13 +578,76 @@ def audit_release_environment(
     )
     expected_policies = sorted(
         (item["type"], item["name"])
-        for item in policy["release_deployment_policies"]
+        for item in policy["release"]["deployment_policies"]
     )
     auditor.equal(
         repository,
         "release_environment.deployment_policies",
         normalized_policies,
         expected_policies,
+    )
+
+
+def audit_organization(
+    api: API,
+    auditor: Auditor,
+    organization: str,
+    controls: dict[str, Any],
+) -> None:
+    metadata = api.get(f"orgs/{organization}")
+    if not isinstance(metadata, dict):
+        auditor.equal("@organization", "organization.response", metadata, "object")
+        return
+    for field in (
+        "default_repository_permission",
+        "members_can_change_repo_visibility",
+        "members_can_create_private_pages",
+        "members_can_create_public_pages",
+        "members_can_create_repositories",
+        "members_can_delete_repositories",
+        "two_factor_requirement_enabled",
+    ):
+        auditor.equal(
+            "@organization",
+            f"organization.{field}",
+            metadata.get(field),
+            controls[field],
+        )
+
+    owners = api.get(f"orgs/{organization}/members?role=admin&per_page=100")
+    owner_count = len(owners) if isinstance(owners, list) else owners
+    auditor.true(
+        "@organization",
+        "organization.owner_count",
+        isinstance(owner_count, int)
+        and not isinstance(owner_count, bool)
+        and owner_count >= controls["minimum_owner_count"],
+        f">= {controls['minimum_owner_count']}",
+        owner_count,
+    )
+
+    outside_collaborators = api.get(
+        f"orgs/{organization}/outside_collaborators?per_page=100"
+    )
+    outside_count = (
+        len(outside_collaborators)
+        if isinstance(outside_collaborators, list)
+        else outside_collaborators
+    )
+    auditor.equal(
+        "@organization",
+        "organization.outside_collaborator_count",
+        outside_count,
+        controls["outside_collaborator_count"],
+    )
+
+    invitations = api.get(f"orgs/{organization}/invitations?per_page=100")
+    invitation_count = len(invitations) if isinstance(invitations, list) else invitations
+    auditor.equal(
+        "@organization",
+        "organization.pending_invitation_count",
+        invitation_count,
+        controls["pending_invitation_count"],
     )
 
 
@@ -547,12 +698,13 @@ def audit_repository(
         )
         auditor.equal(repository, f"security.{feature}", actual, "enabled")
 
+    release_capable = policy["release"] is not None
     immutable = api.get(f"{endpoint_root}/immutable-releases")
     auditor.equal(
         repository,
         "release.immutable",
         immutable.get("enabled") if isinstance(immutable, dict) else immutable,
-        True,
+        release_capable,
     )
 
     actions = api.get(f"{endpoint_root}/actions/permissions")
@@ -597,6 +749,26 @@ def audit_repository(
             "file",
         )
 
+    teams = api.get(f"{endpoint_root}/teams?per_page=100")
+    normalized_teams = (
+        sorted(
+            (team.get("slug"), team.get("permission"))
+            for team in teams
+            if isinstance(team, dict)
+        )
+        if isinstance(teams, list)
+        else teams
+    )
+    expected_teams = sorted(
+        (team["slug"], team["permission"]) for team in policy["access_teams"]
+    )
+    auditor.equal(
+        repository,
+        "repository.access_teams",
+        normalized_teams,
+        expected_teams,
+    )
+
     rulesets = api.get(f"{endpoint_root}/rulesets?includes_parents=true&per_page=100")
     branch = find_ruleset(
         api,
@@ -614,25 +786,59 @@ def audit_repository(
             branch,
             policy["required_status_checks"],
         )
-    tags = find_ruleset(
-        api,
-        auditor,
-        repository,
-        endpoint_root,
-        rulesets,
-        "Protect release tags",
-        "tag",
-    )
-    if tags is not None:
-        audit_tag_ruleset(auditor, repository, tags)
-
-    audit_release_environment(api, auditor, repository, endpoint_root, policy)
+    if release_capable:
+        tags = find_ruleset(
+            api,
+            auditor,
+            repository,
+            endpoint_root,
+            rulesets,
+            "Protect release tags",
+            "tag",
+        )
+        if tags is not None:
+            audit_tag_ruleset(auditor, repository, tags)
+        audit_release_environment(api, auditor, repository, endpoint_root, policy)
+    else:
+        tag_rulesets = (
+            [
+                item
+                for item in rulesets
+                if isinstance(item, dict)
+                and item.get("name") == "Protect release tags"
+                and item.get("target") == "tag"
+            ]
+            if isinstance(rulesets, list)
+            else rulesets
+        )
+        auditor.equal(
+            repository,
+            "ruleset.Protect release tags.count",
+            len(tag_rulesets) if isinstance(tag_rulesets, list) else tag_rulesets,
+            0,
+        )
 
 
 def audit_repositories(api: API, config: dict[str, Any]) -> dict[str, Any]:
     auditor = Auditor()
     organization = config["organization"]
     repositories: list[str] = []
+    try:
+        audit_organization(
+            api,
+            auditor,
+            organization,
+            config["organization_controls"],
+        )
+    except Exception as error:  # noqa: BLE001 - report organization drift and continue.
+        auditor.drifts.append(
+            Drift(
+                repository="@organization",
+                control="audit.api",
+                expected="successful complete API audit",
+                actual=f"{type(error).__name__}: {error}",
+            )
+        )
     for policy in config["repositories"]:
         repository = policy["name"]
         repositories.append(repository)
@@ -648,7 +854,7 @@ def audit_repositories(api: API, config: dict[str, Any]) -> dict[str, Any]:
                 )
             )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "policy_revision": config["policy_revision"],
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "organization": organization,
@@ -666,7 +872,7 @@ def markdown_value(value: Any) -> str:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# Camellia repository policy audit",
+        "# Organization repository policy audit",
         "",
         f"- Policy revision: `{report['policy_revision']}`",
         f"- Generated: `{report['generated_at']}`",
@@ -675,7 +881,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
     ]
     if not report["drifts"]:
-        lines.append("All release-capable repositories match the reviewed baseline.")
+        lines.append("The organization and all repositories match the reviewed baseline.")
         lines.append("")
         return "\n".join(lines)
     lines.extend(
@@ -732,20 +938,34 @@ def main() -> int:
         "--api-base-url",
         default=os.environ.get("GITHUB_API_URL", "https://api.github.com"),
     )
+    parser.add_argument(
+        "--organization",
+        default=os.environ.get("POLICY_AUDIT_ORGANIZATION"),
+        help="Override the configured owner for a rename or migration audit.",
+    )
     args = parser.parse_args()
 
+    report_organization = args.organization or "unavailable"
     try:
         config = load_config(args.config)
+        if args.organization:
+            if not re.fullmatch(
+                r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?",
+                args.organization,
+            ):
+                raise ValueError("--organization must be a valid GitHub owner")
+            config = {**config, "organization": args.organization}
+        report_organization = config["organization"]
         api = GitHubAPI(os.environ.get("GH_TOKEN", ""), args.api_base_url)
         report = audit_repositories(api, config)
     except Exception as error:  # noqa: BLE001 - preserve a machine-readable failure.
         report = {
-            "schema_version": 1,
+            "schema_version": 2,
             "policy_revision": "unavailable",
             "generated_at": datetime.now(timezone.utc)
             .isoformat()
             .replace("+00:00", "Z"),
-            "organization": "camellia-computing",
+            "organization": report_organization,
             "repositories": [],
             "status": "drift",
             "drift_count": 1,
