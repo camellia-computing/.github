@@ -70,15 +70,16 @@ selected-repository organization secret before the old key is revoked. Every
 rotation ends with a successful `Main` run in all five release repositories and
 a compliant organization audit.
 
-## Optional cross-repository reader
+## Prepared cross-repository reader
 
-The current cross-repository sources are public, so anonymous read access is
-sufficient and no App should be created merely to fill empty settings. Create
-this identity only if a target repository becomes private, anonymous API limits
-become operationally insufficient, or a separately auditable machine identity
-is required.
+The current cross-repository sources are public, so the workflows deliberately
+support public reads when the complete App credential pair is absent. The
+organization may nevertheless create the reader in advance to obtain a
+separately auditable, short-lived machine identity. A trusted workflow prefers
+the App when the complete pair is configured; fork and Dependabot contexts
+continue to use public access.
 
-Recommended configuration if it becomes necessary:
+Configuration:
 
 | Setting | Required value |
 | --- | --- |
@@ -88,21 +89,43 @@ Recommended configuration if it becomes necessary:
 | Contents | Read-only |
 | Metadata | Read-only (GitHub-required) |
 | Every other repository/organization permission | None |
-| Installation scope | Selected source repositories only |
+| Installation scope | Selected source repositories only: `nexus`, `nexus-management-server` |
 
-Set the complete pair in every consuming repository:
+Create the complete pair at organization level and restrict its selected
+repositories to the two current consumers, `nexus` and
+`nexus-management-server`:
 
-- variable `CROSS_REPO_READ_APP_CLIENT_ID`;
-- secret `CROSS_REPO_READ_APP_PRIVATE_KEY`.
+- variable `CROSS_REPO_READ_APP_CLIENT_ID` containing the App Client ID, not
+  its numeric App ID;
+- secret `CROSS_REPO_READ_APP_PRIVATE_KEY` containing one complete PEM private
+  key.
 
 Current consumers are the Nexus and Nexus Management cross-repository contract
 checks in `.github/workflows/ci.yml`, `.github/workflows/contract-monitor.yml`,
 and (for Nexus) `.github/workflows/native-e2e.yml`. Their resolvers deliberately
 allow both values to be absent for public sources and reject a partial pair.
+Do not create same-named repository overrides after the organization pair is
+working.
+
+The installation scope lists repositories being read, while the organization
+variable/secret scope lists repositories running the consuming workflows. The
+same two repositories currently serve both roles because Nexus and Nexus
+Management validate each other.
+
+Remote Management currently reads the public `remote-client` source with its
+workflow token. Do not expose the reader private key to Remote Management until
+its local Web-client Action has gained and passed review for the same atomic
+App/public-fallback resolver. If that becomes necessary, first update the code,
+then add `remote-client` to the App installation and
+`remote-management-server` to the organization credential consumers.
 
 Do not grant pull-request write, issue write, administration, Actions, or
-organization permissions to this reader. Re-evaluate the installation list
-whenever a repository becomes private or is archived.
+organization permissions to this reader. An organization owner must create and
+install the App in the GitHub web interface; the existing REST and `gh` flows
+cannot substitute for that owner action. After configuration, run both Nexus
+cross-repository contracts and native E2E and confirm that trusted contexts
+selected App mode. Re-evaluate both selected-repository lists whenever a source
+becomes private, a new consumer is added, or a repository is archived.
 
 ## Repository-local composite actions
 
