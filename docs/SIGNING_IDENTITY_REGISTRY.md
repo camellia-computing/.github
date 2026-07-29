@@ -24,29 +24,37 @@ secrets.
 
 For publisher identities shared by Nexus and Remote Client:
 
-1. Store one reviewed credential group as organization secrets with selected
+1. Generate or prepare the local identity with the standard
+   `github-actions/` bundle described in
+   [`ARTIFACT_SIGNING.md`](ARTIFACT_SIGNING.md). Independently review its
+   `metadata.json` and directly copyable `variables.env`; never treat bundle
+   generation as registry approval.
+2. Store one reviewed credential group as organization secrets with selected
    repository access to `nexus` and `remote-client`.
-2. Store the non-secret expected identity and trust classification as selected
+3. Store the non-secret expected identity and trust classification as selected
    organization variables using the names in the registry. Windows consumers
    validate both the canonical SHA-256 fingerprint and native SHA-1 thumbprint.
-3. Remove same-named repository secrets/variables after the organization group
+4. Remove same-named repository secrets/variables after the organization group
    is verified; repository values override organization values and can
    silently split identity continuity.
-4. Update the registry in a reviewed pull request. Increase
+5. Update the registry in a reviewed pull request. Increase
    `registry_revision`, set the canonical SHA-256 fingerprint, applicable
    native reference and expiry, and link the rotation evidence.
-5. Update product-specific release documentation only where its secret
+6. Update product-specific release documentation only where its secret
    contract or platform behavior changed. Link back here for the current public
    identity rather than copying fingerprint text into multiple documents.
-6. Run a non-publishing candidate in every consumer, followed by an approved
+7. Run a non-publishing candidate in every consumer, followed by an approved
    formal package run. The workflow-derived identity must exactly equal the
    registry identity.
-7. Read back the published bytes and compare the native signature, release
+8. Read back the published bytes and compare the native signature, release
    metadata and registry. A mismatch is a release no-go.
 
 Android and iOS identities are scoped only to `remote-client`. The Android key
 is the application update identity. The iOS certificate must also be authorized
-by the exact provisioning profile, Team ID, bundle ID and export method.
+by the exact provisioning profile, Team ID, bundle ID and export method. A new
+Android generator is valid only for a fresh update lineage; it must never
+replace a known update keystore merely because GitHub cannot reveal old Secret
+values.
 
 ## State model
 

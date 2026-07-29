@@ -45,6 +45,44 @@ receive production signing secrets. Private keys are generated and backed up
 offline, imported only into an ephemeral runner or managed signing service, and
 removed in an always-run cleanup step.
 
+## Standard GitHub Actions configuration bundles
+
+All organization-owned signing generators and Apple identity preparation tools
+produce the same protected local `github-actions/` directory. It keeps the
+reviewed workflow contract synchronized across platforms without committing or
+printing private material:
+
+- `metadata.json`: public platform, trust classification, certificate/key
+  identity, variable names and secret names;
+- `variables.env`: directly copyable non-secret GitHub Actions variables;
+- `secrets/<NAME>`: protected payload files for GitHub Actions Secrets;
+- `upload.sh` and `Upload.ps1`: dry-run-first upload helpers for the current
+  GitHub CLI.
+
+Generation never contacts GitHub. The helpers only list names until invoked
+with their explicit `--apply` or `-Apply` switch; they stream Secret files to
+`gh` and never place their values on the command line. Review the public
+metadata and variable file first, then select exactly one scope:
+
+```bash
+./github-actions/upload.sh --apply --repo camellia-computing/remote-client
+./github-actions/upload.sh --apply --org camellia-computing --repos nexus,remote-client
+```
+
+```powershell
+pwsh -NoProfile -File .\github-actions\Upload.ps1 -Apply `
+  -Repository camellia-computing/remote-client
+pwsh -NoProfile -File .\github-actions\Upload.ps1 -Apply `
+  -Organization camellia-computing -Repositories nexus,remote-client
+```
+
+Use the selected-organization scope only for a reviewed desktop identity shared
+by `nexus` and `remote-client`. Android and iOS material belongs only to
+`remote-client`. A generated bundle does **not** register, approve, or activate
+an identity: the registry, affected repository documentation and a
+`publish=false` candidate must agree before release promotion. Never commit the
+output directory or paste a file from `secrets/` into chat.
+
 ## Platform expectations
 
 ### Windows
@@ -85,9 +123,12 @@ The script exports a public root CER, a root backup PFX, a leaf public CER, and 
 leaf code-signing PFX containing its verification chain. It also writes
 `camellia-private-code-signing-identity.json` with only the public subject,
 issuer, validity, canonical SHA-256 fingerprint and Windows-native SHA-1
-thumbprint required by the signing registry. Keep both PFX files and their
-passwords offline. Install only the public root CER on explicitly managed test
-endpoints.
+thumbprint required by the signing registry, plus a standardized
+`github-actions/` bundle with the exact Windows variables and Secret payloads.
+Keep both PFX files and their passwords offline. Install only the public root
+CER on explicitly managed test endpoints. This generated hierarchy is always
+`private-trust`; a publicly trusted certificate must be packaged and reviewed
+as a separate `public-trust` identity before it is enabled.
 
 ### macOS
 
@@ -114,6 +155,23 @@ bash scripts/new-camellia-macos-private-code-signing-identity.sh \
   "$HOME/Secure/camellia-macos-signing"
 ```
 
+It emits public identity metadata and the same `github-actions/` bundle as the
+other platform tools. For an existing Apple-issued P12, prepare its exact
+workflow values without duplicating it into the repository:
+
+```bash
+bash scripts/prepare-camellia-apple-signing-bundle.sh macos \
+  "$HOME/Secure/camellia-macos-developer-id" \
+  /controlled-inputs/developer-id.p12 \
+  'Developer ID Application: Camellia Computing (TEAMID)' \
+  public-trust
+```
+
+The preparation tool derives the certificate SHA-256 from the P12 and creates
+the GitHub bundle. The macOS release workflow still imports it into an ephemeral
+keychain and verifies the exact `APPLE_SIGNING_IDENTITY`; add notarization API
+credentials separately only after public Developer ID enrollment is mature.
+
 For public downloads, obtain a `Developer ID Application` identity through the
 Apple Developer program and notarize the exact distributed bytes. A free or
 private certificate can be used for controlled testing but must be recorded as
@@ -135,6 +193,12 @@ bash scripts/new-camellia-linux-openpgp-key.sh \
   "$HOME/Secure/camellia-linux-signing" \
   "Camellia Computing Release <release@example.invalid>"
 ```
+
+The output includes the public key, full signing-subkey fingerprint, public
+identity metadata, and a `github-actions/` bundle carrying the exact OpenPGP
+variable and protected Secret files. Keep the private subkey export and
+passphrase in separate offline custody; the generated uploader is a transfer
+mechanism, not a backup system.
 
 Publish the full fingerprint through an authenticated channel independent of
 the release download. A public key shipped beside its own signature is
@@ -159,6 +223,22 @@ public release. When enabled, the complete group is:
 Back up the production keystore and passwords in separate controlled locations.
 Losing the signing identity can prevent future updates.
 
+For a genuinely new Android application/update lineage, generate a modern
+PKCS#12 release keystore and its exact GitHub configuration bundle with:
+
+```bash
+bash scripts/new-camellia-android-release-keystore.sh \
+  "$HOME/Secure/camellia-android-signing"
+```
+
+The script prints the public certificate SHA-256 and writes
+`camellia-android-release-identity.json` plus `github-actions/`. It requires
+one password for the PKCS#12 store and key, then emits both workflow Secret
+names from that controlled value. It is **only** for a fresh update identity.
+If an existing package has ever been signed, re-upload its original reviewed
+keystore and credentials instead; generating a replacement key breaks update
+continuity and must not be presented as a rotation.
+
 ### iOS and iPadOS
 
 An unsigned `.xcarchive` or `-unsigned.ipa` is a re-signing input only. Normal
@@ -173,6 +253,24 @@ membership, expiry, Team ID,
 `com.camellia.remote` bundle ID, distribution type and final embedded
 signature/profile/entitlements. The iOS group is independent from the macOS
 Developer ID group.
+
+Prepare an Apple-issued P12 and its matching provisioning profile as a
+single, reviewed iOS configuration group:
+
+```bash
+bash scripts/prepare-camellia-apple-signing-bundle.sh ios \
+  "$HOME/Secure/camellia-ios-signing" \
+  /controlled-inputs/camellia-ios.p12 \
+  /controlled-inputs/camellia-remote.mobileprovision \
+  'Apple Distribution: Camellia Computing (TEAMID)' \
+  TEAMID \
+  release-testing
+```
+
+This command calculates the P12 fingerprint and produces the exact `IOS_*`
+variables and protected Secret files, but it deliberately does not claim that a
+profile is authorized. The hosted macOS release workflow performs the final
+certificate, Team ID, bundle ID, entitlement and profile-type checks.
 
 ## Repository responsibility matrix
 

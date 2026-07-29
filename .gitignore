@@ -2,6 +2,7 @@
 Thumbs.db
 *.swp
 *.tmp
+__pycache__/
 
 # Local signing material. Public certificates/keys that are intentionally
 # published must be force-added only after a review confirms they contain no
