@@ -443,13 +443,13 @@ The helpers first dry-run and list names only. After review, choose exactly one
 scope and add the explicit apply switch:
 
 ```bash
-./upload.sh --apply --repo camellia-computing/remote-client
-./upload.sh --apply --org camellia-computing --repos nexus,remote-client
+./upload.sh --apply --repo OWNER/CLIENT_REPOSITORY
+./upload.sh --apply --org OWNER --repos CLIENT_ONE,CLIENT_TWO
 ```
 
 ```powershell
-pwsh -NoProfile -File .\\Upload.ps1 -Apply -Repository camellia-computing/remote-client
-pwsh -NoProfile -File .\\Upload.ps1 -Apply -Organization camellia-computing -Repositories nexus,remote-client
+pwsh -NoProfile -File .\\Upload.ps1 -Apply -Repository OWNER/CLIENT_REPOSITORY
+pwsh -NoProfile -File .\\Upload.ps1 -Apply -Organization OWNER -Repositories CLIENT_ONE,CLIENT_TWO
 ```
 
 For a shared desktop identity, use the organization scope with only its approved

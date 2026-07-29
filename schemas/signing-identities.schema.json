@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/camellia-computing/.github/blob/main/schemas/signing-identities.schema.json",
-  "title": "Camellia signing identity registry",
+  "$id": "https://example.invalid/schemas/signing-identities.schema.json",
+  "title": "Artifact signing policy registry",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,6 +9,7 @@
     "registry_revision",
     "organization",
     "last_reviewed_on",
+    "trust_priority",
     "identities"
   ],
   "properties": {
@@ -16,18 +17,28 @@
       "type": "string"
     },
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "registry_revision": {
       "type": "string",
       "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}\\.[1-9][0-9]*$"
     },
     "organization": {
-      "const": "camellia-computing"
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
     },
     "last_reviewed_on": {
       "type": "string",
       "format": "date"
+    },
+    "trust_priority": {
+      "const": [
+        "public-trust",
+        "private-trust",
+        "platform-key",
+        "ad-hoc",
+        "unsigned"
+      ]
     },
     "identities": {
       "type": "array",
@@ -39,11 +50,11 @@
           "id",
           "platform",
           "consumers",
-          "state",
-          "distribution_trust",
-          "secret_names",
-          "variable_names",
-          "public_identity",
+          "allowed_outcomes",
+          "formal_unsigned_allowed",
+          "credential_groups",
+          "verification_adapter",
+          "rotation_max_days",
           "note"
         ],
         "properties": {
@@ -66,100 +77,77 @@
             "uniqueItems": true,
             "items": {
               "enum": [
-                "nexus",
+                "nexus-client",
                 "remote-client"
               ]
             }
           },
-          "state": {
-            "enum": [
-              "not-configured",
-              "configured-unregistered",
-              "active",
-              "retiring",
-              "revoked"
-            ]
-          },
-          "distribution_trust": {
-            "enum": [
-              "public-trust",
-              "private-trust",
-              "platform-key",
-              "unresolved"
-            ]
-          },
-          "secret_names": {
+          "allowed_outcomes": {
             "type": "array",
+            "minItems": 1,
             "uniqueItems": true,
             "items": {
-              "type": "string",
-              "pattern": "^[A-Z][A-Z0-9_]*$"
+              "enum": [
+                "public-trust",
+                "private-trust",
+                "platform-key",
+                "ad-hoc",
+                "unsigned"
+              ]
             }
           },
-          "variable_names": {
+          "formal_unsigned_allowed": {
+            "type": "boolean"
+          },
+          "credential_groups": {
             "type": "array",
-            "uniqueItems": true,
+            "minItems": 1,
             "items": {
-              "type": "string",
-              "pattern": "^[A-Z][A-Z0-9_]*$"
-            }
-          },
-          "public_identity": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "kind",
-              "value",
-              "not_after",
-              "native_reference"
-            ],
-            "properties": {
-              "kind": {
-                "enum": [
-                  "x509-sha256",
-                  "openpgp-fingerprint"
-                ]
-              },
-              "value": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "not_after": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "date-time"
-              },
-              "native_reference": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "kind",
-                      "value"
-                    ],
-                    "properties": {
-                      "kind": {
-                        "const": "x509-sha1-thumbprint"
-                      },
-                      "value": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      }
-                    }
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "secret_names",
+                "variable_names"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "secret_names": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]*$"
                   }
-                ]
+                },
+                "variable_names": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]*$"
+                  }
+                }
               }
             }
+          },
+          "verification_adapter": {
+            "enum": [
+              "authenticode",
+              "apple-codesign",
+              "apple-mobile-codesign",
+              "android-apksigner",
+              "openpgp"
+            ]
+          },
+          "rotation_max_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
           },
           "note": {
             "type": "string",

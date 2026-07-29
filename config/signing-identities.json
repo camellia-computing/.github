@@ -1,92 +1,135 @@
 {
   "$schema": "../schemas/signing-identities.schema.json",
-  "schema_version": 1,
-  "registry_revision": "2026-07-28.3",
+  "schema_version": 2,
+  "registry_revision": "2026-07-29.1",
   "organization": "camellia-computing",
-  "last_reviewed_on": "2026-07-28",
+  "last_reviewed_on": "2026-07-29",
+  "trust_priority": [
+    "public-trust",
+    "private-trust",
+    "platform-key",
+    "ad-hoc",
+    "unsigned"
+  ],
   "identities": [
     {
-      "id": "desktop-windows-publisher",
-      "platform": "windows",
+      "id": "desktop-linux-openpgp",
+      "platform": "linux",
       "consumers": [
-        "nexus",
+        "nexus-client",
         "remote-client"
       ],
-      "state": "configured-unregistered",
-      "distribution_trust": "unresolved",
-      "secret_names": [
-        "WINDOWS_CODESIGN_PFX_BASE64",
-        "WINDOWS_CODESIGN_PFX_PASSWORD"
+      "allowed_outcomes": [
+        "platform-key",
+        "unsigned"
       ],
-      "variable_names": [
-        "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
-        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
-        "WINDOWS_SIGNING_TRUST_MODE",
-        "WINDOWS_TIMESTAMP_URL"
-      ],
-      "public_identity": {
-        "kind": "x509-sha256",
-        "value": null,
-        "not_after": null,
-        "native_reference": {
-          "kind": "x509-sha1-thumbprint",
-          "value": null
+      "formal_unsigned_allowed": true,
+      "credential_groups": [
+        {
+          "id": "primary",
+          "secret_names": [
+            "LINUX_GPG_PASSPHRASE",
+            "LINUX_GPG_PRIVATE_KEY"
+          ],
+          "variable_names": [
+            "LINUX_GPG_FINGERPRINT"
+          ]
         }
-      },
-      "note": "The Nexus client repository has a PFX group, but its reviewed SHA-256 fingerprint, native SHA-1 thumbprint and trust classification have not yet been registered and Remote Client has not received the shared group."
+      ],
+      "verification_adapter": "openpgp",
+      "rotation_max_days": 30,
+      "note": "Detached signatures are verified from the downloaded artifact; the configured fingerprint is only an expected-identity constraint."
     },
     {
       "id": "desktop-macos-publisher",
       "platform": "macos",
       "consumers": [
-        "nexus",
+        "nexus-client",
         "remote-client"
       ],
-      "state": "not-configured",
-      "distribution_trust": "unresolved",
-      "secret_names": [
-        "APPLE_API_PRIVATE_KEY",
-        "APPLE_CERTIFICATE",
-        "APPLE_CERTIFICATE_PASSWORD"
+      "allowed_outcomes": [
+        "public-trust",
+        "private-trust",
+        "ad-hoc",
+        "unsigned"
       ],
-      "variable_names": [
-        "APPLE_API_ISSUER",
-        "APPLE_API_KEY",
-        "APPLE_SIGNING_CERTIFICATE_SHA256",
-        "APPLE_SIGNING_IDENTITY",
-        "APPLE_SIGNING_TRUST_MODE"
+      "formal_unsigned_allowed": true,
+      "credential_groups": [
+        {
+          "id": "primary",
+          "secret_names": [
+            "APPLE_API_PRIVATE_KEY",
+            "APPLE_CERTIFICATE",
+            "APPLE_CERTIFICATE_PASSWORD"
+          ],
+          "variable_names": [
+            "APPLE_API_ISSUER",
+            "APPLE_API_KEY",
+            "APPLE_SIGNING_CERTIFICATE_SHA256",
+            "APPLE_SIGNING_IDENTITY"
+          ]
+        },
+        {
+          "id": "secondary",
+          "secret_names": [
+            "APPLE_SECONDARY_API_PRIVATE_KEY",
+            "APPLE_SECONDARY_CERTIFICATE",
+            "APPLE_SECONDARY_CERTIFICATE_PASSWORD"
+          ],
+          "variable_names": [
+            "APPLE_SECONDARY_API_ISSUER",
+            "APPLE_SECONDARY_API_KEY",
+            "APPLE_SECONDARY_SIGNING_CERTIFICATE_SHA256",
+            "APPLE_SECONDARY_SIGNING_IDENTITY"
+          ]
+        }
       ],
-      "public_identity": {
-        "kind": "x509-sha256",
-        "value": null,
-        "not_after": null,
-        "native_reference": null
-      },
-      "note": "macOS certificate signing and notarization remain optional complete groups; private test identities and public Developer ID identities must be registered separately when activated."
+      "verification_adapter": "apple-codesign",
+      "rotation_max_days": 30,
+      "note": "Code signing, Gatekeeper assessment and notarization are evaluated independently from the final downloaded bytes."
     },
     {
-      "id": "desktop-linux-openpgp",
-      "platform": "linux",
+      "id": "desktop-windows-publisher",
+      "platform": "windows",
       "consumers": [
-        "nexus",
+        "nexus-client",
         "remote-client"
       ],
-      "state": "not-configured",
-      "distribution_trust": "platform-key",
-      "secret_names": [
-        "LINUX_GPG_PASSPHRASE",
-        "LINUX_GPG_PRIVATE_KEY"
+      "allowed_outcomes": [
+        "public-trust",
+        "private-trust",
+        "unsigned"
       ],
-      "variable_names": [
-        "LINUX_GPG_FINGERPRINT"
+      "formal_unsigned_allowed": true,
+      "credential_groups": [
+        {
+          "id": "primary",
+          "secret_names": [
+            "WINDOWS_CODESIGN_PFX_BASE64",
+            "WINDOWS_CODESIGN_PFX_PASSWORD"
+          ],
+          "variable_names": [
+            "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
+            "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
+            "WINDOWS_TIMESTAMP_URL"
+          ]
+        },
+        {
+          "id": "secondary",
+          "secret_names": [
+            "WINDOWS_SECONDARY_CODESIGN_PFX_BASE64",
+            "WINDOWS_SECONDARY_CODESIGN_PFX_PASSWORD"
+          ],
+          "variable_names": [
+            "WINDOWS_SECONDARY_CODESIGN_CERTIFICATE_SHA256",
+            "WINDOWS_SECONDARY_CODESIGN_CERTIFICATE_THUMBPRINT",
+            "WINDOWS_SECONDARY_TIMESTAMP_URL"
+          ]
+        }
       ],
-      "public_identity": {
-        "kind": "openpgp-fingerprint",
-        "value": null,
-        "not_after": null,
-        "native_reference": null
-      },
-      "note": "The detached-signature key may be shared by the two desktop clients, but the public fingerprint must be registered before signed artifacts are promoted."
+      "verification_adapter": "authenticode",
+      "rotation_max_days": 30,
+      "note": "Authenticode trust is derived from native verification; a configured trust label cannot promote an untrusted certificate."
     },
     {
       "id": "remote-android-update",
@@ -94,24 +137,28 @@
       "consumers": [
         "remote-client"
       ],
-      "state": "not-configured",
-      "distribution_trust": "platform-key",
-      "secret_names": [
-        "ANDROID_ALIAS",
-        "ANDROID_KEY_PASSWORD",
-        "ANDROID_KEY_STORE_PASSWORD",
-        "ANDROID_SIGNING_KEY"
+      "allowed_outcomes": [
+        "platform-key",
+        "unsigned"
       ],
-      "variable_names": [
-        "ANDROID_SIGNING_CERTIFICATE_SHA256"
+      "formal_unsigned_allowed": true,
+      "credential_groups": [
+        {
+          "id": "primary",
+          "secret_names": [
+            "ANDROID_ALIAS",
+            "ANDROID_KEY_PASSWORD",
+            "ANDROID_KEY_STORE_PASSWORD",
+            "ANDROID_SIGNING_KEY"
+          ],
+          "variable_names": [
+            "ANDROID_SIGNING_CERTIFICATE_SHA256"
+          ]
+        }
       ],
-      "public_identity": {
-        "kind": "x509-sha256",
-        "value": null,
-        "not_after": null,
-        "native_reference": null
-      },
-      "note": "The source account contains legacy-named Android secrets, but GitHub cannot copy their values and the old workflow did not consume them. Re-upload the reviewed update key to Remote Client and register its certificate digest."
+      "verification_adapter": "android-apksigner",
+      "rotation_max_days": 0,
+      "note": "The application update identity is stable; replacement requires a platform-supported signing lineage rather than an ordinary overlap."
     },
     {
       "id": "remote-ios-distribution",
@@ -119,26 +166,31 @@
       "consumers": [
         "remote-client"
       ],
-      "state": "not-configured",
-      "distribution_trust": "platform-key",
-      "secret_names": [
-        "IOS_CERTIFICATE_BASE64",
-        "IOS_CERTIFICATE_PASSWORD",
-        "IOS_PROVISIONING_PROFILE_BASE64"
+      "allowed_outcomes": [
+        "platform-key",
+        "ad-hoc",
+        "unsigned"
       ],
-      "variable_names": [
-        "IOS_EXPORT_METHOD",
-        "IOS_SIGNING_CERTIFICATE_SHA256",
-        "IOS_SIGNING_IDENTITY",
-        "IOS_TEAM_ID"
+      "formal_unsigned_allowed": true,
+      "credential_groups": [
+        {
+          "id": "primary",
+          "secret_names": [
+            "IOS_CERTIFICATE_BASE64",
+            "IOS_CERTIFICATE_PASSWORD",
+            "IOS_PROVISIONING_PROFILE_BASE64"
+          ],
+          "variable_names": [
+            "IOS_EXPORT_METHOD",
+            "IOS_SIGNING_CERTIFICATE_SHA256",
+            "IOS_SIGNING_IDENTITY",
+            "IOS_TEAM_ID"
+          ]
+        }
       ],
-      "public_identity": {
-        "kind": "x509-sha256",
-        "value": null,
-        "not_after": null,
-        "native_reference": null
-      },
-      "note": "The iOS identity is independent from the macOS Developer ID group and must match the explicit com.camellia.remote profile, Team ID and selected export method."
+      "verification_adapter": "apple-mobile-codesign",
+      "rotation_max_days": 30,
+      "note": "The certificate, provisioning profile, Team ID, bundle identifier and export method are verified as one atomic platform identity."
     }
   ]
 }

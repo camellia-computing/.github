@@ -36,8 +36,8 @@ Distribution trust is classified as follows:
 | `public-trust` | A certificate or store identity chained to a platform-recognized publisher | Verify the exact identity, chain, timestamp/notarization, and expiry policy |
 | `private-trust` | A Camellia-controlled private CA/key trusted only on managed devices | Publish the public root/fingerprint through a separate authenticated channel and warn that unmanaged devices will not trust it |
 | `platform-key` | A self-controlled platform update identity, such as an Android app-signing key | Verify exact key continuity and protect its backup; do not imply a public CA chain |
-| `none` | An unsigned or ad-hoc artifact has no publisher trust | Label filenames/metadata and document the platform warning or required re-signing step |
-| `not-applicable` | The artifact has no platform-native publisher-signing mechanism in this release path | Keep the supply-chain evidence layer |
+| `ad-hoc` | A platform-local signature without an independently trusted publisher identity | Restrict distribution and state the installation limitations |
+| `unsigned` | The artifact has no native publisher signature | Require protected-environment approval and state the installation or re-signing requirement |
 
 Signing settings are atomic groups: all required values for a mode must be
 present or the workflow must stop before packaging. Candidate builds must not
@@ -65,15 +65,15 @@ with their explicit `--apply` or `-Apply` switch; they stream Secret files to
 metadata and variable file first, then select exactly one scope:
 
 ```bash
-./github-actions/upload.sh --apply --repo camellia-computing/remote-client
-./github-actions/upload.sh --apply --org camellia-computing --repos nexus,remote-client
+./github-actions/upload.sh --apply --repo OWNER/CLIENT_REPOSITORY
+./github-actions/upload.sh --apply --org OWNER --repos CLIENT_ONE,CLIENT_TWO
 ```
 
 ```powershell
 pwsh -NoProfile -File .\github-actions\Upload.ps1 -Apply `
-  -Repository camellia-computing/remote-client
+  -Repository OWNER/CLIENT_REPOSITORY
 pwsh -NoProfile -File .\github-actions\Upload.ps1 -Apply `
-  -Organization camellia-computing -Repositories nexus,remote-client
+  -Organization OWNER -Repositories CLIENT_ONE,CLIENT_TWO
 ```
 
 Use the selected-organization scope only for a reviewed desktop identity shared
@@ -102,14 +102,12 @@ The standard repository interface is:
   uppercase 64-hexadecimal leaf fingerprint;
 - variable `WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT` containing the
   Windows-native uppercase 40-hexadecimal SHA-1 leaf reference;
-- variable `WINDOWS_SIGNING_TRUST_MODE` containing exactly `public-trust` or
-  `private-trust`;
 - optional variable `WINDOWS_TIMESTAMP_URL`.
 
 Nexus and Remote Client reject a PFX whose derived SHA-256 fingerprint or
-native thumbprint differs from the reviewed organization variables. Both
-repositories record the verified native signing state and explicit trust
-classification in their release evidence.
+native thumbprint differs from the protected expected values. Authenticode
+verification derives public/private trust from the final bytes; no configured
+trust label can promote the result.
 
 Generate a private test hierarchy on a controlled Windows workstation with
 PowerShell 7.6 or later:
@@ -143,8 +141,6 @@ The standard repository interface is:
 - variable `APPLE_SIGNING_CERTIFICATE_SHA256` containing the canonical
   uppercase leaf fingerprint;
 - secrets `APPLE_CERTIFICATE` and `APPLE_CERTIFICATE_PASSWORD`;
-- where the workflow supports both public and private identities, variable
-  `APPLE_SIGNING_TRUST_MODE`;
 - for notarization only, variables `APPLE_API_ISSUER` and `APPLE_API_KEY` plus
   secret `APPLE_API_PRIVATE_KEY`.
 
@@ -305,8 +301,8 @@ Do not duplicate a PFX, private key, or password into a repository that does not
 consume it. In particular, Windows PFX values do not belong in server-only image
 repositories.
 
-The current non-secret identity, expiry, consumer list and GitHub value contract
-are maintained in the
+The current non-secret policy, consumer list and GitHub credential-name
+contract are maintained in the
 [`signing identity registry`](SIGNING_IDENTITY_REGISTRY.md). Shared Nexus/Remote
 desktop credentials should use organization secrets restricted to both client
 repositories. Same-named repository values must be removed after migration
@@ -314,26 +310,12 @@ because they override organization values and can silently drift.
 
 ## Release metadata contract
 
-Each native artifact must have machine-readable signing metadata containing at
-least:
-
-```json
-{
-  "artifact": "example-package",
-  "platform": "windows",
-  "native_signing": {
-    "mode": "unsigned",
-    "distribution_trust": "none",
-    "identity": null,
-    "notarized": false
-  }
-}
-```
-
-For a signed artifact, record a non-secret stable identity such as the complete
-certificate thumbprint or OpenPGP fingerprint. Never include a private key,
-password, access token, or raw secret value. The human-readable release notes
-must summarize the same modes and explain any installation limitations.
+Each release uses the organization
+[`release-evidence.json`](RELEASE_EVIDENCE.md) contract. Native verifier output
+may record an identity already embedded in the artifact, but must not copy a
+private inventory, local keychain path, password, access token or raw secret.
+Human-readable release notes summarize the same category and installation
+limitations.
 
 ## Deployment and verification
 
