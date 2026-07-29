@@ -66,6 +66,11 @@ trap cleanup EXIT
 
 export CAMELLIA_ANDROID_STORE_PASSWORD=$store_password
 export CAMELLIA_ANDROID_KEY_PASSWORD=$key_password
+keystore_summary="$(
+  keytool -J-Duser.language=en -J-Duser.country=US -list \
+    -keystore "$keystore_path" \
+    -storepass:env CAMELLIA_ANDROID_STORE_PASSWORD
+)"
 certificate_output="$(
   keytool -J-Duser.language=en -J-Duser.country=US -list -v \
     -keystore "$keystore_path" \
@@ -87,7 +92,7 @@ keytool -J-Duser.language=en -J-Duser.country=US -certreq -rfc \
   -file "$temporary_directory/certificate-request.pem" >/dev/null
 
 keystore_type="$(
-  sed -n 's/^Keystore type: //p' <<< "$certificate_output" | head -n 1
+  sed -n 's/^Keystore type: //p' <<< "$keystore_summary" | head -n 1
 )"
 certificate_sha256="$(
   sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' <<< "$certificate_output" |
