@@ -27,7 +27,7 @@ write_report() {
   jq -n \
     --arg status "$status" \
     --argjson count "$count" '{
-      schema_version: 1,
+      schema_version: 2,
       policy_revision: "2026-07-28.1",
       status: $status,
       drift_count: $count,
@@ -73,6 +73,14 @@ grep -Fq 'issue close 17' "$log"
 run_reconcile success '[]'
 [[ ! -s "$log" ]]
 
+jq '.schema_version = 1' "$report_json" > "$report_json.old"
+mv "$report_json.old" "$report_json"
+if run_reconcile success '[]' >/dev/null 2>&1; then
+  echo 'Legacy report schema was accepted' >&2
+  exit 1
+fi
+
+write_report compliant
 if run_reconcile success '[
   {"number":17,"title":"[automation] Repository policy drift"},
   {"number":18,"title":"[automation] Repository policy drift"}

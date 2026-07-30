@@ -55,6 +55,14 @@ least-privilege `GITHUB_TOKEN` maintains the central drift issue, so the App
 does not need Issues write. Revisit the documented inheritance exception when
 the action exposes a Variables permission selector.
 
+GitHub's REST repository response omits some merge-policy fields from this
+installation token, and its ruleset response intentionally hides bypass actors
+unless the caller has write access. The auditor does not widen its permission
+set to work around either behavior. It uses a GraphQL read query for the seven
+merge-policy values and each ruleset's bypass-actor count, while REST continues
+to verify the complete rule definitions. A GraphQL error, partial ruleset page,
+missing repository, duplicate ruleset ID or unavailable count fails closed.
+
 ## Reviewed controls
 
 [`repository-policies.json`](../config/repository-policies.json) is the
@@ -142,7 +150,8 @@ are consumed to completion; a truncated response fails closed. Each hosted run
 retains machine-readable JSON and readable Markdown for 30 days. Drift creates
 or updates one issue in the governance repository; a later
 compliant run closes it. Reports remain workflow artifacts and are not
-committed.
+committed. Before changing that issue, the reconciler verifies the version 2
+report contract and requires its status to match the audit step outcome.
 
 The audit never remediates settings. Correct either hosted state or the
 reviewed config in a separately reviewed action, rerun the audit, and retain

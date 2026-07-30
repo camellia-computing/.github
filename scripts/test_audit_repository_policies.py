@@ -20,6 +20,14 @@ class FakeAPI:
             raise RuntimeError(f"missing fixture: {endpoint}")
         return copy.deepcopy(self.responses[endpoint])
 
+    def graphql(self, query: str, variables: dict[str, Any]) -> Any:
+        if query != audit.REPOSITORY_POLICY_QUERY:
+            raise RuntimeError("unexpected GraphQL query")
+        endpoint = f"graphql:{variables.get('owner')}/{variables.get('name')}"
+        if endpoint not in self.responses:
+            raise RuntimeError(f"missing fixture: {endpoint}")
+        return copy.deepcopy(self.responses[endpoint])
+
 
 def fixture_for(
     policy: dict[str, Any],
@@ -124,21 +132,35 @@ def fixture_for(
                 "id": organization_id,
                 "login": organization,
             },
-            "allow_auto_merge": False,
-            "allow_merge_commit": False,
-            "allow_rebase_merge": False,
-            "allow_squash_merge": True,
             "archived": False,
             "default_branch": "main",
-            "delete_branch_on_merge": True,
-            "squash_merge_commit_message": "BLANK",
-            "squash_merge_commit_title": "PR_TITLE",
             "visibility": policy["visibility"],
             "security_and_analysis": {
                 "dependabot_security_updates": {"status": "enabled"},
                 "secret_scanning": {"status": "enabled"},
                 "secret_scanning_push_protection": {"status": "enabled"},
             },
+        },
+        f"graphql:{organization}/{repository}": {
+            "repository": {
+                "autoMergeAllowed": False,
+                "deleteBranchOnMerge": True,
+                "mergeCommitAllowed": False,
+                "rebaseMergeAllowed": False,
+                "squashMergeAllowed": True,
+                "squashMergeCommitMessage": "BLANK",
+                "squashMergeCommitTitle": "PR_TITLE",
+                "rulesets": {
+                    "totalCount": len(rulesets),
+                    "nodes": [
+                        {
+                            "databaseId": ruleset["id"],
+                            "bypassActors": {"totalCount": 0},
+                        }
+                        for ruleset in rulesets
+                    ],
+                },
+            }
         },
         f"{root}/immutable-releases": {"enabled": release_capable},
         f"{root}/actions/permissions": {
@@ -176,10 +198,10 @@ def fixture_for(
         ],
         f"{root}/rulesets?includes_parents=true&per_page=100": rulesets,
         f"{root}/rulesets/1": {
+            "id": 1,
             "name": "Protect default branch",
             "target": "branch",
             "enforcement": "active",
-            "bypass_actors": [],
             "conditions": {
                 "ref_name": {
                     "exclude": [],
@@ -248,10 +270,10 @@ def fixture_for(
         responses.update(
             {
                 f"{root}/rulesets/2": {
+                    "id": 2,
                     "name": "Protect release tags",
                     "target": "tag",
                     "enforcement": "active",
-                    "bypass_actors": [],
                     "conditions": {
                         "ref_name": {
                             "exclude": [],
@@ -405,6 +427,32 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
             "ruleset.default_branch.pull_request.require_last_push_approval",
             controls,
         )
+
+    def test_graphql_merge_and_bypass_drift_is_reported(self) -> None:
+        responses = self.fixture(self.release_policy)
+        endpoint = (
+            f"graphql:{self.config['organization']}/{self.release_policy['name']}"
+        )
+        repository = responses[endpoint]["repository"]
+        repository["mergeCommitAllowed"] = True
+        repository["rulesets"]["nodes"][0]["bypassActors"]["totalCount"] = 1
+
+        report = self.run_fixture(self.release_policy, responses)
+        controls = {item["control"] for item in report["drifts"]}
+        self.assertIn("repository.allow_merge_commit", controls)
+        self.assertIn("ruleset.default_branch.bypass_actor_count", controls)
+
+    def test_incomplete_graphql_ruleset_view_fails_closed(self) -> None:
+        responses = self.fixture(self.release_policy)
+        endpoint = (
+            f"graphql:{self.config['organization']}/{self.release_policy['name']}"
+        )
+        responses[endpoint]["repository"]["rulesets"]["nodes"].pop()
+
+        report = self.run_fixture(self.release_policy, responses)
+        self.assertEqual(report["drift_count"], 1)
+        self.assertEqual(report["drifts"][0]["control"], "audit.api")
+        self.assertIn("incomplete ruleset data", report["drifts"][0]["actual"])
 
     def test_organization_and_team_drift_is_reported(self) -> None:
         responses = self.fixture(self.release_policy)

@@ -127,10 +127,34 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 REVIEWED_CONFIG_PATH = REPOSITORY_ROOT / "config/repository-policies.json"
 AUDIT_JSON_OUTPUT_PATH = REPOSITORY_ROOT / "audit-report.json"
 AUDIT_MARKDOWN_OUTPUT_PATH = REPOSITORY_ROOT / "audit-report.md"
+REPOSITORY_POLICY_QUERY = """
+query RepositoryPolicy($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    autoMergeAllowed
+    deleteBranchOnMerge
+    mergeCommitAllowed
+    rebaseMergeAllowed
+    squashMergeAllowed
+    squashMergeCommitMessage
+    squashMergeCommitTitle
+    rulesets(first: 100, includeParents: false) {
+      totalCount
+      nodes {
+        databaseId
+        bypassActors(first: 1) {
+          totalCount
+        }
+      }
+    }
+  }
+}
+""".strip()
 
 
 class API(Protocol):
     def get(self, endpoint: str) -> Any: ...
+
+    def graphql(self, query: str, variables: dict[str, Any]) -> Any: ...
 
 
 class GitHubAPI:
@@ -166,6 +190,47 @@ class GitHubAPI:
         if not content:
             return None
         return json.loads(content)
+
+    def graphql(self, query: str, variables: dict[str, Any]) -> Any:
+        payload = json.dumps(
+            {"query": query, "variables": variables},
+            separators=(",", ":"),
+        ).encode()
+        request = Request(
+            f"{self._base_url}/graphql",
+            data=payload,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {self._token}",
+                "Content-Type": "application/json",
+                "User-Agent": "organization-repository-policy-audit",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=30) as response:
+                content = response.read()
+        except HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"GitHub GraphQL API {error.code}: {detail}") from error
+        except URLError as error:
+            raise RuntimeError(f"GitHub GraphQL API unavailable: {error}") from error
+        if not content:
+            raise RuntimeError("GitHub GraphQL API returned an empty response")
+        result = json.loads(content)
+        if not isinstance(result, dict):
+            raise TypeError("GitHub GraphQL API returned a non-object response")
+        if result.get("errors"):
+            raise RuntimeError(
+                "GitHub GraphQL query failed: "
+                + json.dumps(
+                    result["errors"], ensure_ascii=False, separators=(",", ":")
+                )
+            )
+        data = result.get("data")
+        if not isinstance(data, dict):
+            raise TypeError("GitHub GraphQL API response has no data object")
+        return data
 
 
 def page_endpoint(endpoint: str, page: int) -> str:
@@ -691,6 +756,54 @@ def rules_by_type(
     }
 
 
+def repository_policy_view(
+    api: API,
+    organization: str,
+    repository: str,
+) -> tuple[dict[str, Any], dict[int, int]]:
+    data = api.graphql(
+        REPOSITORY_POLICY_QUERY,
+        {"owner": organization, "name": repository},
+    )
+    policy_view = data.get("repository") if isinstance(data, dict) else None
+    if not isinstance(policy_view, dict):
+        raise TypeError("GitHub GraphQL API returned no repository policy view")
+
+    rulesets = policy_view.get("rulesets")
+    if not isinstance(rulesets, dict):
+        raise TypeError("GitHub GraphQL API returned no repository ruleset view")
+    total_count = rulesets.get("totalCount")
+    nodes = rulesets.get("nodes")
+    if (
+        not isinstance(total_count, int)
+        or isinstance(total_count, bool)
+        or total_count < 0
+        or not isinstance(nodes, list)
+        or len(nodes) != total_count
+    ):
+        raise RuntimeError("GitHub GraphQL API returned incomplete ruleset data")
+
+    bypass_actor_counts: dict[int, int] = {}
+    for node in nodes:
+        database_id = node.get("databaseId") if isinstance(node, dict) else None
+        bypass_actors = node.get("bypassActors") if isinstance(node, dict) else None
+        bypass_actor_count = (
+            bypass_actors.get("totalCount") if isinstance(bypass_actors, dict) else None
+        )
+        if (
+            not isinstance(database_id, int)
+            or isinstance(database_id, bool)
+            or database_id < 1
+            or database_id in bypass_actor_counts
+            or not isinstance(bypass_actor_count, int)
+            or isinstance(bypass_actor_count, bool)
+            or bypass_actor_count < 0
+        ):
+            raise RuntimeError("GitHub GraphQL API returned invalid ruleset data")
+        bypass_actor_counts[database_id] = bypass_actor_count
+    return policy_view, bypass_actor_counts
+
+
 def find_ruleset(
     api: API,
     auditor: Auditor,
@@ -699,7 +812,7 @@ def find_ruleset(
     rulesets: Any,
     name: str,
     target: str,
-) -> dict[str, Any] | None:
+) -> tuple[int, dict[str, Any]] | None:
     matches = (
         [
             item
@@ -714,24 +827,31 @@ def find_ruleset(
     auditor.equal(repository, f"ruleset.{name}.count", len(matches), 1)
     if len(matches) != 1 or not isinstance(matches[0].get("id"), int):
         return None
-    detail = api.get(f"{endpoint_root}/rulesets/{matches[0]['id']}")
+    ruleset_id = matches[0]["id"]
+    detail = api.get(f"{endpoint_root}/rulesets/{ruleset_id}")
     if not isinstance(detail, dict):
         auditor.equal(repository, f"ruleset.{name}.response", detail, "object")
         return None
-    return detail
+    return ruleset_id, detail
 
 
 def audit_branch_ruleset(
     auditor: Auditor,
     repository: str,
     detail: dict[str, Any],
+    bypass_actor_count: Any,
     expected_checks: list[str],
 ) -> None:
     prefix = "ruleset.default_branch"
     auditor.equal(
         repository, f"{prefix}.enforcement", detail.get("enforcement"), "active"
     )
-    auditor.equal(repository, f"{prefix}.bypass", detail.get("bypass_actors"), [])
+    auditor.equal(
+        repository,
+        f"{prefix}.bypass_actor_count",
+        bypass_actor_count,
+        0,
+    )
     auditor.equal(
         repository,
         f"{prefix}.conditions",
@@ -830,12 +950,18 @@ def audit_tag_ruleset(
     auditor: Auditor,
     repository: str,
     detail: dict[str, Any],
+    bypass_actor_count: Any,
 ) -> None:
     prefix = "ruleset.release_tags"
     auditor.equal(
         repository, f"{prefix}.enforcement", detail.get("enforcement"), "active"
     )
-    auditor.equal(repository, f"{prefix}.bypass", detail.get("bypass_actors"), [])
+    auditor.equal(
+        repository,
+        f"{prefix}.bypass_actor_count",
+        bypass_actor_count,
+        0,
+    )
     auditor.equal(
         repository,
         f"{prefix}.conditions",
@@ -1211,6 +1337,11 @@ def audit_repository(
     if not isinstance(metadata, dict):
         auditor.equal(repository, "repository.response", metadata, "object")
         return
+    policy_view, bypass_actor_counts = repository_policy_view(
+        api,
+        organization,
+        repository,
+    )
 
     metadata_name = metadata.get("name")
     auditor.equal(
@@ -1247,23 +1378,32 @@ def audit_repository(
         organization.casefold(),
     )
 
-    expected_repository_settings = {
-        "allow_auto_merge": False,
-        "allow_merge_commit": False,
-        "allow_rebase_merge": False,
-        "allow_squash_merge": True,
+    expected_repository_metadata = {
         "archived": False,
         "default_branch": "main",
-        "delete_branch_on_merge": True,
-        "squash_merge_commit_message": "BLANK",
-        "squash_merge_commit_title": "PR_TITLE",
         "visibility": policy["visibility"],
     }
-    for field, expected in expected_repository_settings.items():
+    for field, expected in expected_repository_metadata.items():
         auditor.equal(
             repository,
             f"repository.{field}",
             metadata.get(field),
+            expected,
+        )
+    expected_repository_settings = {
+        "allow_auto_merge": ("autoMergeAllowed", False),
+        "allow_merge_commit": ("mergeCommitAllowed", False),
+        "allow_rebase_merge": ("rebaseMergeAllowed", False),
+        "allow_squash_merge": ("squashMergeAllowed", True),
+        "delete_branch_on_merge": ("deleteBranchOnMerge", True),
+        "squash_merge_commit_message": ("squashMergeCommitMessage", "BLANK"),
+        "squash_merge_commit_title": ("squashMergeCommitTitle", "PR_TITLE"),
+    }
+    for field, (graphql_field, expected) in expected_repository_settings.items():
+        auditor.equal(
+            repository,
+            f"repository.{field}",
+            policy_view.get(graphql_field),
             expected,
         )
 
@@ -1407,10 +1547,12 @@ def audit_repository(
         "branch",
     )
     if branch is not None:
+        branch_id, branch_detail = branch
         audit_branch_ruleset(
             auditor,
             repository,
-            branch,
+            branch_detail,
+            bypass_actor_counts.get(branch_id),
             policy["required_status_checks"],
         )
     if release_capable:
@@ -1424,7 +1566,13 @@ def audit_repository(
             "tag",
         )
         if tags is not None:
-            audit_tag_ruleset(auditor, repository, tags)
+            tag_id, tag_detail = tags
+            audit_tag_ruleset(
+                auditor,
+                repository,
+                tag_detail,
+                bypass_actor_counts.get(tag_id),
+            )
         audit_release_environment(api, auditor, repository, endpoint_root, policy)
     else:
         tag_rulesets = (
