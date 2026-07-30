@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 CATEGORIES = {
     "public-trust",
     "private-trust",
@@ -96,7 +95,9 @@ def validate_signing(value: Any, location: str) -> None:
         if verification != "verified" or verifier == "none" or not evidence:
             raise ValueError(f"{location} signed evidence must be verified")
     if category == "ad-hoc" and distribution == "public":
-        raise ValueError(f"{location} ad-hoc artifacts cannot claim public distribution")
+        raise ValueError(
+            f"{location} ad-hoc artifacts cannot claim public distribution"
+        )
 
 
 def validate_release_evidence(value: dict[str, Any]) -> None:
@@ -167,7 +168,7 @@ def main() -> None:
     args = parser.parse_args()
     value = json.loads(args.evidence.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise ValueError("release evidence root must be an object")
+        raise TypeError("release evidence root must be an object")
     validate_release_evidence(value)
     print(f"Validated release evidence for {len(value['artifacts'])} artifacts")
 
