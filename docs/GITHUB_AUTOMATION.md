@@ -6,29 +6,32 @@ inherit the calling job's token. They are not interchangeable.
 ## Release Manager App
 
 The Release Manager performs reviewed release PR and immutable publication
-operations. Its display name, slug and bot login are configuration, never
-hard-coded policy:
+operations. Its Client ID and bot login are configuration, never hard-coded
+policy:
 
 - variable `RELEASE_APP_CLIENT_ID`;
-- variable `RELEASE_APP_SLUG`;
 - variable `RELEASE_APP_LOGIN`;
 - secret `RELEASE_APP_PRIVATE_KEY`.
 
-The four values are atomic. The installation is limited to release-capable
+The three values are atomic. The installation and organization-level credential
+visibility are limited to release-capable
 repositories. Grant Contents, Issues and Pull requests read/write, with
 Administration and Metadata read. Do not grant Actions, Workflows or
-organization permissions. Candidate builds do not receive its private key.
+organization permissions. The governance repository does not receive these
+credentials. Candidate builds do not receive the private key.
 
-Product workflows compare both the minted App slug and authenticated bot login
-with the configured values. Organization-scoped variables/secrets are
-preferred; repository overrides are forbidden because they split identity
-rotation.
+Product workflows verify the minted App identity and compare the authenticated
+bot login with `RELEASE_APP_LOGIN`. Organization-scoped variables and secrets
+are preferred; repository overrides are forbidden because they split identity
+rotation. The policy audit compares their selected-repository scope by immutable
+repository ID.
 
 ## Policy Auditor App
 
 The dedicated read-oriented Policy Auditor is documented in
-[`ORGANIZATION_POLICY_AUDIT.md`](ORGANIZATION_POLICY_AUDIT.md). It is installed
-on every managed repository and is never reused for releases.
+[`ORGANIZATION_POLICY_AUDIT.md`](ORGANIZATION_POLICY_AUDIT.md). Install it for
+all organization repositories so a newly created repository becomes visible to
+the next inventory audit. It is never reused for releases.
 
 ## Cross-repository Reader App
 
@@ -54,6 +57,17 @@ code during a trusted job.
 Each local Action documents inputs, outputs, permissions, trust boundary and
 update procedure. Third-party Actions are pinned to full commit SHAs with a
 version comment.
+
+## Organization Actions boundary
+
+The organization allows Actions in every managed repository and requires
+server-side full-SHA pinning. Workflow tokens default to read-only, cannot
+approve pull-request reviews, and elevate only at the consuming job. Allowing
+all Action publishers does not permit mutable tags: repository workflows and
+the organization control both require immutable references. Logs and temporary
+workflow artifacts default to 30-day retention to preserve investigation
+evidence without exhausting the GitHub Free storage allowance; durable release
+evidence belongs in immutable Releases or registries.
 
 ## Permission rules
 

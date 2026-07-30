@@ -7,10 +7,9 @@ import argparse
 import json
 import re
 import subprocess
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
-
 
 TRUST_PRIORITY = (
     "public-trust",
@@ -26,7 +25,6 @@ PLATFORM_ADAPTERS = {
     "macos": "apple-codesign",
     "windows": "authenticode",
 }
-CONSUMERS = {"nexus-client", "remote-client"}
 FORBIDDEN_KEYS = {
     "private_key",
     "private_key_pem",
@@ -86,7 +84,9 @@ def reject_forbidden_keys(value: Any, location: str = "$") -> None:
     if isinstance(value, dict):
         for key, child in value.items():
             if key.lower() in FORBIDDEN_KEYS:
-                raise ValueError(f"private material field is forbidden at {location}.{key}")
+                raise ValueError(
+                    f"private material field is forbidden at {location}.{key}"
+                )
             reject_forbidden_keys(child, f"{location}.{key}")
     elif isinstance(value, list):
         for index, child in enumerate(value):
@@ -127,7 +127,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
     if not re.fullmatch(r"20\d{2}-\d{2}-\d{2}\.[1-9]\d*", revision):
         raise ValueError("registry_revision must use YYYY-MM-DD.N")
     reviewed = date.fromisoformat(require_string(registry, "last_reviewed_on"))
-    if reviewed > date.today():
+    if reviewed > datetime.now(timezone.utc).date():
         raise ValueError("last_reviewed_on cannot be in the future")
     if revision.split(".", 1)[0] != reviewed.isoformat():
         raise ValueError("registry_revision date must equal last_reviewed_on")
@@ -158,8 +158,12 @@ def validate_registry(registry: dict[str, Any]) -> None:
         if (
             not isinstance(consumers, list)
             or not consumers
+            or any(
+                not isinstance(consumer, str)
+                or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", consumer)
+                for consumer in consumers
+            )
             or consumers != sorted(set(consumers))
-            or not set(consumers).issubset(CONSUMERS)
         ):
             raise ValueError(f"{identity_id} has invalid or unsorted consumers")
 
@@ -176,9 +180,11 @@ def validate_registry(registry: dict[str, Any]) -> None:
             )
         formal_unsigned = identity.get("formal_unsigned_allowed")
         if not isinstance(formal_unsigned, bool):
-            raise ValueError(f"{identity_id}.formal_unsigned_allowed must be boolean")
+            raise TypeError(f"{identity_id}.formal_unsigned_allowed must be boolean")
         if formal_unsigned and "unsigned" not in outcomes:
-            raise ValueError(f"{identity_id} allows unsigned without an unsigned outcome")
+            raise ValueError(
+                f"{identity_id} allows unsigned without an unsigned outcome"
+            )
 
         rotation_days = identity.get("rotation_max_days")
         if (
@@ -186,7 +192,9 @@ def validate_registry(registry: dict[str, Any]) -> None:
             or isinstance(rotation_days, bool)
             or not 0 <= rotation_days <= 90
         ):
-            raise ValueError(f"{identity_id}.rotation_max_days must be between 0 and 90")
+            raise ValueError(
+                f"{identity_id}.rotation_max_days must be between 0 and 90"
+            )
 
         credential_groups = identity.get("credential_groups")
         if not isinstance(credential_groups, list) or not credential_groups:
@@ -216,7 +224,9 @@ def validate_registry(registry: dict[str, Any]) -> None:
                 )
             all_names.update(names)
         if group_ids != sorted(set(group_ids)):
-            raise ValueError(f"{identity_id} credential groups must be sorted and unique")
+            raise ValueError(
+                f"{identity_id} credential groups must be sorted and unique"
+            )
         require_string(identity, "note")
 
     if seen_ids != sorted(set(seen_ids)):
@@ -259,7 +269,7 @@ def main() -> None:
     path = Path(args.registry)
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise ValueError("registry root must be an object")
+        raise TypeError("registry root must be an object")
     validate_registry(value)
     reject_tracked_sensitive_files(Path.cwd())
     print(

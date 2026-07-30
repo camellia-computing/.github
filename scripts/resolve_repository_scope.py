@@ -14,13 +14,24 @@ def repository_names(config_path: Path) -> list[str]:
     if not isinstance(repositories, list) or not repositories:
         raise ValueError("policy config must contain repositories")
     names = [item.get("name") for item in repositories if isinstance(item, dict)]
+    logical_ids = [
+        item.get("logical_id") for item in repositories if isinstance(item, dict)
+    ]
     if (
         len(names) != len(repositories)
+        or len(logical_ids) != len(repositories)
         or any(not isinstance(name, str) or not name for name in names)
-        or names != sorted(set(names))
+        or any(
+            not isinstance(logical_id, str) or not logical_id
+            for logical_id in logical_ids
+        )
+        or logical_ids != sorted(set(logical_ids))
+        or len({name.casefold() for name in names}) != len(names)
     ):
-        raise ValueError("repository names must be sorted, unique strings")
-    return names
+        raise ValueError(
+            "repository policies must have unique names and be sorted by logical_id"
+        )
+    return sorted(names, key=str.casefold)
 
 
 def main() -> None:

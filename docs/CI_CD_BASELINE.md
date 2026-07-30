@@ -73,8 +73,16 @@ package metadata adopts Remote's explicit trust and delivery vocabulary.
 
 ## Required hosted settings
 
+- Organization Actions policy enables the reviewed repository inventory,
+  requires full-SHA references, grants read-only workflow tokens by default,
+  forbids workflow review approval, and retains logs/artifacts for 30 days.
+- One enforced organization code-security configuration applies to every
+  managed public repository and is the default for newly created public
+  repositories. Repository-level CodeQL parameters remain explicit and
+  audited.
 - Immutable Releases enabled for every repository that creates a GitHub
-  Release.
+  Release, with the exact release-capable repository ID set managed centrally
+  at organization level.
 - A `release` environment with non-self team review, protected branch/tag
   policies and no broad deployment token.
 - Tag rules preventing update/deletion of release tags.

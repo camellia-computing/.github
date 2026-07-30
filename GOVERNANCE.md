@@ -4,8 +4,8 @@ Camellia Computing owns common repository policy while each product team owns it
 
 ## Decision boundaries
 
-- The Remote team reviews `remote-client`, `remote-protocol`, `remote-server`, and `remote-management-server`.
-- The Nexus team reviews `nexus` and `nexus-management-server`.
+- The Remote team reviews the `remote-client`, `remote-management`, `remote-protocol`, and `remote-server` logical repositories.
+- The Nexus team reviews the `nexus-client` and `nexus-management` logical repositories.
 - Cross-product changes share patterns and review evidence, not databases, accounts, libraries, versions, secrets, release jobs, or runtime dependencies by default.
 - Security-sensitive, licensing, identity, schema, signing, and release-policy changes require explicit owner review.
 

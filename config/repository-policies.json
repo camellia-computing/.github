@@ -1,10 +1,89 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
-  "schema_version": 2,
-  "policy_revision": "2026-07-29.1",
+  "schema_version": 3,
+  "policy_revision": "2026-07-30.2",
   "organization": "camellia-computing",
-  "last_reviewed_on": "2026-07-29",
+  "organization_id": 309967130,
+  "last_reviewed_on": "2026-07-30",
+  "automation_scopes": [
+    {
+      "logical_id": "desktop-windows-publisher",
+      "organization_secrets": [
+        "WINDOWS_CODESIGN_PFX_BASE64",
+        "WINDOWS_CODESIGN_PFX_PASSWORD"
+      ],
+      "organization_variables": [
+        "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
+        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
+        "WINDOWS_SIGNING_TRUST_MODE"
+      ],
+      "repository_logical_ids": [
+        "nexus-client",
+        "remote-client"
+      ]
+    },
+    {
+      "logical_id": "release-manager",
+      "organization_secrets": [
+        "RELEASE_APP_PRIVATE_KEY"
+      ],
+      "organization_variables": [
+        "RELEASE_APP_CLIENT_ID",
+        "RELEASE_APP_LOGIN"
+      ],
+      "repository_logical_ids": [
+        "nexus-client",
+        "nexus-management",
+        "remote-client",
+        "remote-management",
+        "remote-server"
+      ]
+    }
+  ],
+  "code_security_configuration": {
+    "configuration_id": 263484,
+    "default_for_new_repos": "public",
+    "description": "Enforced security baseline for managed public repositories.",
+    "enforcement": "enforced",
+    "logical_id": "managed-public-repositories",
+    "name": "Managed public repositories",
+    "settings": {
+      "advanced_security": "enabled",
+      "code_scanning_default_setup": "enabled",
+      "code_scanning_default_setup_options": {
+        "runner_label": null,
+        "runner_type": "standard"
+      },
+      "code_scanning_delegated_alert_dismissal": "disabled",
+      "code_scanning_options": {
+        "allow_advanced": false
+      },
+      "dependabot_alerts": "enabled",
+      "dependabot_delegated_alert_dismissal": "disabled",
+      "dependabot_security_updates": "enabled",
+      "dependency_graph": "enabled",
+      "dependency_graph_autosubmit_action": "disabled",
+      "dependency_graph_autosubmit_action_options": {
+        "labeled_runners": false
+      },
+      "private_vulnerability_reporting": "enabled",
+      "secret_scanning": "enabled",
+      "secret_scanning_delegated_alert_dismissal": "disabled",
+      "secret_scanning_delegated_bypass": "disabled",
+      "secret_scanning_extended_metadata": "enabled",
+      "secret_scanning_generic_secrets": "not_set",
+      "secret_scanning_non_provider_patterns": "enabled",
+      "secret_scanning_push_protection": "enabled",
+      "secret_scanning_validity_checks": "enabled"
+    }
+  },
   "organization_controls": {
+    "actions_allowed_actions": "all",
+    "actions_artifact_and_log_retention_days": 30,
+    "actions_can_approve_pull_request_reviews": false,
+    "actions_default_workflow_permissions": "read",
+    "actions_enabled_repositories": "all",
+    "actions_sha_pinning_required": true,
     "default_repository_permission": "none",
     "members_can_change_repo_visibility": false,
     "members_can_create_private_pages": false,
@@ -18,8 +97,10 @@
   },
   "repositories": [
     {
+      "artifact_ids": [],
       "logical_id": "governance",
       "name": ".github",
+      "repository_id": 1314440454,
       "product": "organization",
       "profile": "governance",
       "visibility": "public",
@@ -38,14 +119,26 @@
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/dependabot.yml",
         ".github/workflows/organization-audit.yml",
-        ".github/workflows/policy.yml"
+        ".github/workflows/policy.yml",
+        "config/repository-policies.json",
+        "schemas/repository-policies.schema.json",
+        "scripts/audit_portability.py",
+        "scripts/audit_repository_policies.py",
+        "scripts/bootstrap_policy_auditor.py",
+        "scripts/fixtures/repository-rename.json",
+        "scripts/resolve_repository_scope.py"
       ],
       "release": null
     },
     {
+      "artifact_ids": [
+        "nexus-client"
+      ],
       "logical_id": "nexus-client",
       "name": "nexus",
+      "repository_id": 1314465372,
       "product": "nexus",
       "profile": "release-client",
       "visibility": "public",
@@ -80,8 +173,12 @@
       }
     },
     {
+      "artifact_ids": [
+        "nexus-management-service"
+      ],
       "logical_id": "nexus-management",
       "name": "nexus-management-server",
+      "repository_id": 1314465604,
       "product": "nexus",
       "profile": "release-service",
       "visibility": "public",
@@ -116,8 +213,12 @@
       }
     },
     {
+      "artifact_ids": [
+        "remote-client"
+      ],
       "logical_id": "remote-client",
       "name": "remote-client",
+      "repository_id": 1314464755,
       "product": "remote",
       "profile": "release-client",
       "visibility": "public",
@@ -146,8 +247,12 @@
       }
     },
     {
+      "artifact_ids": [
+        "remote-management-service"
+      ],
       "logical_id": "remote-management",
       "name": "remote-management-server",
+      "repository_id": 1314465182,
       "product": "remote",
       "profile": "release-service",
       "visibility": "public",
@@ -176,8 +281,12 @@
       }
     },
     {
+      "artifact_ids": [
+        "remote-protocol"
+      ],
       "logical_id": "remote-protocol",
       "name": "remote-protocol",
+      "repository_id": 1314665994,
       "product": "remote",
       "profile": "library",
       "visibility": "public",
@@ -197,8 +306,12 @@
       "release": null
     },
     {
+      "artifact_ids": [
+        "remote-server"
+      ],
       "logical_id": "remote-server",
       "name": "remote-server",
+      "repository_id": 1314464947,
       "product": "remote",
       "profile": "release-service",
       "visibility": "public",

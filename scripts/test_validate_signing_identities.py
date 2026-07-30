@@ -64,6 +64,15 @@ class SigningPolicyValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "reuses credential names"):
             self.validator.validate_registry(registry)
 
+    def test_consumer_is_a_portable_logical_id_not_a_fixed_allowlist(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        registry["identities"][0]["consumers"] = ["future-client"]
+        self.validator.validate_registry(registry)
+
+        registry["identities"][0]["consumers"] = ["Invalid Consumer"]
+        with self.assertRaisesRegex(ValueError, "invalid or unsorted consumers"):
+            self.validator.validate_registry(registry)
+
 
 if __name__ == "__main__":
     unittest.main()

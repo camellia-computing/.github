@@ -24,15 +24,31 @@ class ResolveRepositoryScopeTests(unittest.TestCase):
                 json.dumps(
                     {
                         "repositories": [
-                            {"name": "same"},
-                            {"name": "same"},
+                            {"logical_id": "first", "name": "same"},
+                            {"logical_id": "second", "name": "SAME"},
                         ]
                     }
                 ),
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "sorted, unique"):
+            with self.assertRaisesRegex(ValueError, "unique names"):
                 repository_names(config)
+
+    def test_physical_names_need_not_follow_logical_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "policy.json"
+            config.write_text(
+                json.dumps(
+                    {
+                        "repositories": [
+                            {"logical_id": "client", "name": "z.Client"},
+                            {"logical_id": "server", "name": "a_server"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(repository_names(config), ["a_server", "z.Client"])
 
 
 if __name__ == "__main__":

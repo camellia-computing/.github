@@ -77,11 +77,12 @@ pwsh -NoProfile -File .\github-actions\Upload.ps1 -Apply `
 ```
 
 Use the selected-organization scope only for a reviewed desktop identity shared
-by `nexus` and `remote-client`. Android and iOS material belongs only to
-`remote-client`. A generated bundle does **not** register, approve, or activate
-an identity: the registry, affected repository documentation and a
-`publish=false` candidate must agree before release promotion. Never commit the
-output directory or paste a file from `secrets/` into chat.
+by the `nexus-client` and `remote-client` logical repositories. Android and iOS
+material belongs only to `remote-client`. A generated bundle does **not**
+register, approve, or activate an identity: the registry, affected repository
+documentation and a `publish=false` candidate must agree before release
+promotion. Never commit the output directory or paste a file from `secrets/`
+into chat.
 
 ## Platform expectations
 
@@ -288,13 +289,13 @@ certificate, Team ID, bundle ID, entitlement and profile-type checks.
 
 ## Repository responsibility matrix
 
-| Repository | Native outputs | Native secret groups |
+| Repository logical ID | Native outputs | Native secret groups |
 | --- | --- | --- |
-| `nexus` | Windows, macOS, Linux desktop packages | Windows PFX, Apple identity/P12/notary, Linux OpenPGP; all optional and independently fail-closed |
-| `nexus-management-server` | OCI service image | None; use keyless Cosign/attestation |
+| `nexus-client` | Windows, macOS, Linux desktop packages | Windows PFX, Apple identity/P12/notary, Linux OpenPGP; all optional and independently fail-closed |
+| `nexus-management` | OCI service image | None; use keyless Cosign/attestation |
 | `remote-client` | Windows, macOS, Linux, Android, iOS, Web | Windows PFX, macOS Apple identity/P12/notary, Linux OpenPGP, Android keystore, and iOS P12/profile; all optional complete groups with explicit fallback modes |
 | `remote-server` | Linux archives and OCI images | No native certificate in the current workflow; use checksums and keyless Cosign/attestation |
-| `remote-management-server` | OCI service image | None; use keyless Cosign/attestation |
+| `remote-management` | OCI service image | None; use keyless Cosign/attestation |
 | `remote-protocol` | Source/library contract | None |
 
 Do not duplicate a PFX, private key, or password into a repository that does not
