@@ -21,7 +21,7 @@ expected_status=compliant
 [[ "$AUDIT_OUTCOME" == failure ]] && expected_status=drift
 jq -e \
   --arg status "$expected_status" \
-  '.schema_version == 1 and .status == $status and
+  '.schema_version == 2 and .status == $status and
    (.drift_count | type == "number") and (.drifts | type == "array")' \
   "$AUDIT_REPORT_JSON" >/dev/null || {
   echo 'Audit report does not match the workflow outcome' >&2

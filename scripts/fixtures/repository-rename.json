@@ -1,0 +1,12 @@
+{
+  "organization": "portable-example",
+  "repository_names": {
+    "governance": ".github",
+    "nexus-client": "Nexus.Client",
+    "nexus-management": "nexus_management",
+    "remote-client": "Remote.Client",
+    "remote-management": "remote_management",
+    "remote-protocol": "Remote.Protocol",
+    "remote-server": "remote_server"
+  }
+}

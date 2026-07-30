@@ -1,88 +1,53 @@
-# Signing identity registry
+# Signing policy registry
 
-[`config/signing-identities.json`](../config/signing-identities.json) is the
-organization's single source of truth for non-secret native publisher
-identities. It records the current consumers, GitHub secret/variable contract,
-trust classification, public certificate or key fingerprint, expiry and
-rotation state.
+[`signing-identities.json`](../config/signing-identities.json) is the
+non-secret policy for native publisher identities. It defines logical
+consumers, credential-group names, allowed outcomes, verification adapters,
+rotation windows and the strongest-first trust order:
 
-X.509 identities use a SHA-256 certificate fingerprint as their canonical
-cross-platform identity. Windows additionally records the native SHA-1
-certificate thumbprint consumed by Authenticode tooling; that reference is not
-treated as the cryptographic integrity digest. Multiple entries for one
-platform are allowed so an `active` and `retiring` identity can coexist during
-a reviewed rotation.
+1. `public-trust`;
+2. `private-trust`;
+3. `platform-key`;
+4. `ad-hoc`;
+5. `unsigned`.
 
-The registry deliberately does not contain a PFX/P12, keystore, provisioning
-profile, private key, password, passphrase, App private key, or recoverable
-private material. Those values belong in an offline custody system or GitHub
-organization secrets restricted to the exact client repositories that consume
-them. Server-only repositories must not receive desktop or mobile signing
-secrets.
+The registry does not claim that a credential is active and does not store a
+certificate subject, fingerprint, expiry, local path or private material.
+Expected identity values belong in protected environment variables or secrets.
+Actual state is derived from the final downloaded artifact and recorded in
+[`release-evidence.json`](RELEASE_EVIDENCE.md).
 
-## Synchronization contract
+## Credential selection
 
-For publisher identities shared by Nexus and Remote Client:
+Each identity has one or more atomic credential groups. The workflow inspects
+every group without printing values:
 
-1. Generate or prepare the local identity with the standard
-   `github-actions/` bundle described in
-   [`ARTIFACT_SIGNING.md`](ARTIFACT_SIGNING.md). Independently review its
-   `metadata.json` and directly copyable `variables.env`; never treat bundle
-   generation as registry approval.
-2. Store one reviewed credential group as organization secrets with selected
-   repository access to `nexus` and `remote-client`.
-3. Store the non-secret expected identity and trust classification as selected
-   organization variables using the names in the registry. Windows consumers
-   validate both the canonical SHA-256 fingerprint and native SHA-1 thumbprint.
-4. Remove same-named repository secrets/variables after the organization group
-   is verified; repository values override organization values and can
-   silently split identity continuity.
-5. Update the registry in a reviewed pull request. Increase
-   `registry_revision`, set the canonical SHA-256 fingerprint, applicable
-   native reference and expiry, and link the rotation evidence.
-6. Update product-specific release documentation only where its secret
-   contract or platform behavior changed. Link back here for the current public
-   identity rather than copying fingerprint text into multiple documents.
-7. Run a non-publishing candidate in every consumer, followed by an approved
-   formal package run. The workflow-derived identity must exactly equal the
-   registry identity.
-8. Read back the published bytes and compare the native signature, release
-   metadata and registry. A mismatch is a release no-go.
+- all fields absent: the group is unavailable;
+- some fields present: fail before packaging;
+- all fields present: import into an ephemeral store, derive its public
+  identity and verify it against the protected expectation.
 
-Android and iOS identities are scoped only to `remote-client`. The Android key
-is the application update identity. The iOS certificate must also be authorized
-by the exact provisioning profile, Team ID, bundle ID and export method. A new
-Android generator is valid only for a fresh update lineage; it must never
-replace a known update keystore merely because GitHub cannot reveal old Secret
-values.
+Complete groups are classified by the platform verifier and sorted by the
+registry trust order. An invalid or partially configured stronger group blocks
+the release; it is never bypassed in favor of a weaker group. If no native
+credential exists, a formal unsigned artifact is allowed only when both the
+registry and protected release environment permit it.
 
-## State model
+## Rotation
 
-| State | Meaning |
-| --- | --- |
-| `not-configured` | No production credential is available to the target repository |
-| `configured-unregistered` | Private material exists, but the reviewed public identity/expiry or every intended consumer is not registered |
-| `active` | The complete secret group, public identity, workflows and intended consumers agree |
-| `retiring` | Old and new identities overlap for a documented rotation window |
-| `revoked` | The identity must no longer sign new artifacts |
+Desktop certificate rotation may configure `primary` and `secondary` groups
+for at most `rotation_max_days`. Selection is based on verified trust, not the
+group name. Remove the retired group after the overlap and publish a new
+version if distributed bytes change.
 
-Only `active` and an explicitly reviewed `retiring` identity may sign a public
-release. An unconfigured platform may still produce the explicitly documented
-unsigned/ad-hoc/re-signing mode allowed by
-[`ARTIFACT_SIGNING.md`](ARTIFACT_SIGNING.md).
+Android update identity replacement is not an ordinary certificate rotation.
+Its zero-day overlap policy requires a platform-supported signing lineage and
+separate review.
 
-## Rotation evidence
+## Custody
 
-Record, without secret values:
-
-- old/new registry revision and fingerprint;
-- certificate/key issuer, algorithm, usage and UTC validity;
-- intended repositories and distribution trust;
-- organization secret/variable update timestamps;
-- candidate and formal workflow URLs;
-- native verification output from downloaded bytes;
-- revocation/distrust action and rollback point;
-- operator and independent reviewer.
-
-Never rewrite an old Release or claim that newly signed bytes are the same
-artifact. Publish a new immutable version.
+PFX/P12 data, keystores, provisioning profiles, private keys, passphrases,
+GitHub App keys and tokens remain in offline custody or selected-repository
+GitHub secrets. Server-only repositories never receive desktop/mobile signing
+material. Generators and upload helpers must be dry-run-first, stream secret
+files through standard input and never put secret values on a command line.

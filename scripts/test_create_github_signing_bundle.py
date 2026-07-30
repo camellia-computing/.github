@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Regression tests for protected GitHub Actions signing bundles."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-
 
 SCRIPT_PATH = Path(__file__).with_name("create-github-signing-bundle.py")
 SPEC = importlib.util.spec_from_file_location("github_signing_bundle", SCRIPT_PATH)
@@ -64,7 +62,9 @@ class GitHubSigningBundleTests(unittest.TestCase):
             ]
         )
 
-    def test_bundle_contains_exact_non_secret_contract_and_protected_payloads(self) -> None:
+    def test_bundle_contains_exact_non_secret_contract_and_protected_payloads(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             bundle = self.create_bundle(directory)
@@ -90,7 +90,9 @@ class GitHubSigningBundleTests(unittest.TestCase):
                 "test-password",
             )
 
-            metadata = json.loads((bundle / "metadata.json").read_text(encoding="utf-8"))
+            metadata = json.loads(
+                (bundle / "metadata.json").read_text(encoding="utf-8")
+            )
             self.assertEqual(metadata["platform"], "windows")
             self.assertEqual(metadata["distribution_trust"], "private-trust")
             self.assertEqual(
@@ -99,7 +101,13 @@ class GitHubSigningBundleTests(unittest.TestCase):
             )
             public_files = "\n".join(
                 (bundle / name).read_text(encoding="utf-8")
-                for name in ("README.md", "metadata.json", "variables.env", "upload.sh", "Upload.ps1")
+                for name in (
+                    "README.md",
+                    "metadata.json",
+                    "variables.env",
+                    "upload.sh",
+                    "Upload.ps1",
+                )
             )
             self.assertNotIn("test-password", public_files)
             self.assertNotIn("test-pfx-bytes", public_files)
@@ -140,10 +148,10 @@ class GitHubSigningBundleTests(unittest.TestCase):
             fake_gh.write_text(
                 "#!/usr/bin/env bash\n"
                 "set -euo pipefail\n"
-                "printf '%s\\n' \"$*\" >> \"$GH_TRACE\"\n"
-                "if [[ \"$1\" == secret && \"$2\" == set ]]; then\n"
+                'printf \'%s\\n\' "$*" >> "$GH_TRACE"\n'
+                'if [[ "$1" == secret && "$2" == set ]]; then\n'
                 "  bytes=$(wc -c < /dev/stdin)\n"
-                "  printf 'secret-stdin-bytes=%s\\n' \"$bytes\" >> \"$GH_TRACE\"\n"
+                '  printf \'secret-stdin-bytes=%s\\n\' "$bytes" >> "$GH_TRACE"\n'
                 "fi\n",
                 encoding="utf-8",
             )
@@ -153,12 +161,20 @@ class GitHubSigningBundleTests(unittest.TestCase):
             environment["PATH"] = str(fake_bin) + os.pathsep + environment["PATH"]
 
             subprocess.run(
-                ["bash", str(bundle / "upload.sh"), "--apply", "--repo", "owner/repository"],
+                [
+                    "bash",
+                    str(bundle / "upload.sh"),
+                    "--apply",
+                    "--repo",
+                    "owner/repository",
+                ],
                 check=True,
                 env=environment,
             )
             shell_trace = trace.read_text(encoding="utf-8")
-            self.assertIn("variable set WINDOWS_CODESIGN_CERTIFICATE_SHA256", shell_trace)
+            self.assertIn(
+                "variable set WINDOWS_CODESIGN_CERTIFICATE_SHA256", shell_trace
+            )
             self.assertIn("secret set WINDOWS_CODESIGN_PFX_BASE64", shell_trace)
             self.assertIn("secret set WINDOWS_CODESIGN_PFX_PASSWORD", shell_trace)
             self.assertNotIn("test-password", shell_trace)
@@ -182,9 +198,16 @@ class GitHubSigningBundleTests(unittest.TestCase):
                     env=environment,
                 )
                 powershell_trace = trace.read_text(encoding="utf-8")
-                self.assertIn("variable set WINDOWS_CODESIGN_CERTIFICATE_SHA256", powershell_trace)
-                self.assertIn("--org owner --repos nexus,remote-client --visibility selected", powershell_trace)
-                self.assertIn("secret set WINDOWS_CODESIGN_PFX_BASE64", powershell_trace)
+                self.assertIn(
+                    "variable set WINDOWS_CODESIGN_CERTIFICATE_SHA256", powershell_trace
+                )
+                self.assertIn(
+                    "--org owner --repos nexus,remote-client --visibility selected",
+                    powershell_trace,
+                )
+                self.assertIn(
+                    "secret set WINDOWS_CODESIGN_PFX_BASE64", powershell_trace
+                )
                 self.assertNotIn("test-password", powershell_trace)
                 self.assertNotIn("test-pfx-bytes", powershell_trace)
 

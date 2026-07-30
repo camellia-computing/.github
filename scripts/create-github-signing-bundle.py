@@ -19,7 +19,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 GITHUB_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 PLATFORMS = {"windows", "macos", "linux", "android", "ios"}
 TRUST_MODES = {"public-trust", "private-trust", "platform-key"}
@@ -90,13 +89,17 @@ def reject_private_public_metadata(value: Any, location: str = "$") -> None:
                 raise BundleError(f"public identity key at {location} must be a string")
             normalized_key = re.sub(r"[^a-z0-9]", "", key.lower())
             if normalized_key in FORBIDDEN_PUBLIC_FIELD_NORMALIZED:
-                raise BundleError(f"private field is forbidden in public identity: {location}.{key}")
+                raise BundleError(
+                    f"private field is forbidden in public identity: {location}.{key}"
+                )
             reject_private_public_metadata(child, f"{location}.{key}")
     elif isinstance(value, list):
         for index, child in enumerate(value):
             reject_private_public_metadata(child, f"{location}[{index}]")
     elif not isinstance(value, (str, int, float, bool, type(None))):
-        raise BundleError(f"public identity contains an unsupported value at {location}")
+        raise BundleError(
+            f"public identity contains an unsupported value at {location}"
+        )
 
 
 def load_public_identity(path: Path) -> Any:
@@ -104,7 +107,9 @@ def load_public_identity(path: Path) -> Any:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise BundleError(f"--identity-file is not valid UTF-8 JSON: {error}") from error
+        raise BundleError(
+            f"--identity-file is not valid UTF-8 JSON: {error}"
+        ) from error
     reject_private_public_metadata(value)
     rendered = json.dumps(value, sort_keys=True)
     if any(marker in rendered for marker in PRIVATE_MARKERS):
@@ -443,13 +448,13 @@ The helpers first dry-run and list names only. After review, choose exactly one
 scope and add the explicit apply switch:
 
 ```bash
-./upload.sh --apply --repo camellia-computing/remote-client
-./upload.sh --apply --org camellia-computing --repos nexus,remote-client
+./upload.sh --apply --repo OWNER/CLIENT_REPOSITORY
+./upload.sh --apply --org OWNER --repos CLIENT_ONE,CLIENT_TWO
 ```
 
 ```powershell
-pwsh -NoProfile -File .\\Upload.ps1 -Apply -Repository camellia-computing/remote-client
-pwsh -NoProfile -File .\\Upload.ps1 -Apply -Organization camellia-computing -Repositories nexus,remote-client
+pwsh -NoProfile -File .\\Upload.ps1 -Apply -Repository OWNER/CLIENT_REPOSITORY
+pwsh -NoProfile -File .\\Upload.ps1 -Apply -Organization OWNER -Repositories CLIENT_ONE,CLIENT_TWO
 ```
 
 For a shared desktop identity, use the organization scope with only its approved
@@ -469,7 +474,9 @@ def create_bundle(
     secret_sources: dict[str, tuple[Path, bool]],
 ) -> Path:
     if output_directory.is_symlink() or not output_directory.is_dir():
-        raise BundleError("OUTPUT_DIRECTORY must be an existing, non-symbolic-link directory")
+        raise BundleError(
+            "OUTPUT_DIRECTORY must be an existing, non-symbolic-link directory"
+        )
     bundle_directory = output_directory / "github-actions"
     if bundle_directory.exists() or bundle_directory.is_symlink():
         raise BundleError(f"refusing to overwrite existing bundle: {bundle_directory}")
@@ -561,7 +568,9 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> Path:
     args = parse_arguments(argv)
-    variables = dict(sorted(parse_variable_assignment(value) for value in args.variable))
+    variables = dict(
+        sorted(parse_variable_assignment(value) for value in args.variable)
+    )
     if len(variables) != len(args.variable):
         raise BundleError("GitHub variable names must be unique")
 

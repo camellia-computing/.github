@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """End-to-end regression tests for local signing-material generators."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 SCRIPTS = Path(__file__).parent
 P12_PASSWORD = "test-only-p12-password"
 GPG_PASSPHRASE = "test-only-gpg-passphrase"
@@ -24,7 +22,9 @@ ANDROID_KEY_PASSWORD = "test-only-android-key-password"
 class SigningMaterialGeneratorTests(unittest.TestCase):
     maxDiff = None
 
-    def run_script(self, arguments: list[str], user_input: str) -> subprocess.CompletedProcess[str]:
+    def run_script(
+        self, arguments: list[str], user_input: str
+    ) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             ["bash", *arguments],
             input=user_input,
@@ -57,8 +57,14 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
             variables,
         )
         self.assertEqual(set(metadata["github_actions"]["secrets"]), secrets)
-        self.assertEqual({path.name for path in (bundle / "secrets").iterdir()}, secrets)
-        for path in (bundle / "README.md", bundle / "metadata.json", bundle / "variables.env"):
+        self.assertEqual(
+            {path.name for path in (bundle / "secrets").iterdir()}, secrets
+        )
+        for path in (
+            bundle / "README.md",
+            bundle / "metadata.json",
+            bundle / "variables.env",
+        ):
             self.assertNotIn(forbidden_value, path.read_text(encoding="utf-8"))
         self.assertFalse((output / ".github-actions-input").exists())
 
@@ -67,10 +73,17 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "macos"
             self.run_script(
-                [str(SCRIPTS / "new-camellia-macos-private-code-signing-identity.sh"), str(output)],
+                [
+                    str(
+                        SCRIPTS / "new-camellia-macos-private-code-signing-identity.sh"
+                    ),
+                    str(output),
+                ],
                 P12_PASSWORD + "\n",
             )
-            self.assertTrue((output / "camellia-private-code-signing-leaf.p12").is_file())
+            self.assertTrue(
+                (output / "camellia-private-code-signing-leaf.p12").is_file()
+            )
             self.assert_bundle(
                 output,
                 "macos",
@@ -111,7 +124,10 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "android"
             self.run_script(
-                [str(SCRIPTS / "new-camellia-android-release-keystore.sh"), str(output)],
+                [
+                    str(SCRIPTS / "new-camellia-android-release-keystore.sh"),
+                    str(output),
+                ],
                 ANDROID_PASSWORD + "\n" + ANDROID_PASSWORD + "\n",
             )
             self.assertTrue((output / "camellia-android-release.keystore").is_file())
@@ -130,7 +146,9 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
             )
 
     @unittest.skipUnless(shutil.which("keytool"), "keytool is required")
-    def test_existing_android_keystore_preparation_preserves_update_identity(self) -> None:
+    def test_existing_android_keystore_preparation_preserves_update_identity(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             original_keystore = root / "historical-release.jks"
@@ -203,14 +221,18 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
                 ANDROID_STORE_PASSWORD,
             )
             identity = json.loads(
-                (output / "camellia-android-release-identity.json").read_text(encoding="utf-8")
+                (output / "camellia-android-release-identity.json").read_text(
+                    encoding="utf-8"
+                )
             )
             self.assertEqual(identity["alias"], "historical-release")
             self.assertEqual(identity["keystoreType"], "JKS")
             self.assertRegex(identity["certificateSha256"], r"^[0-9A-F]{64}$")
             self.assertEqual(
                 base64.b64decode(
-                    (output / "github-actions" / "secrets" / "ANDROID_SIGNING_KEY").read_bytes()
+                    (
+                        output / "github-actions" / "secrets" / "ANDROID_SIGNING_KEY"
+                    ).read_bytes()
                 ),
                 original_keystore.read_bytes(),
             )
@@ -221,7 +243,12 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
             root = Path(temporary)
             generated = root / "generated"
             self.run_script(
-                [str(SCRIPTS / "new-camellia-macos-private-code-signing-identity.sh"), str(generated)],
+                [
+                    str(
+                        SCRIPTS / "new-camellia-macos-private-code-signing-identity.sh"
+                    ),
+                    str(generated),
+                ],
                 P12_PASSWORD + "\n",
             )
             p12 = generated / "camellia-private-code-signing-leaf.p12"
