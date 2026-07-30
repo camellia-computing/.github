@@ -17,12 +17,12 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Any
 
 from audit_repository_policies import (
     API_VERSION,
     EXPECTED_POLICY_AUDITOR_PERMISSIONS,
+    REVIEWED_CONFIG_PATH,
     load_config,
 )
 
@@ -366,11 +366,6 @@ def verify_installation(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config/repository-policies.json"),
-    )
     parser.add_argument("--app-name")
     parser.add_argument(
         "--timeout-seconds",
@@ -395,7 +390,7 @@ def main() -> int:
     if not shutil.which("gh"):
         parser.error("gh is required")
 
-    config = load_config(args.config)
+    config = load_config(REVIEWED_CONFIG_PATH)
     repository = governance_repository(config)
     run_checked(["gh", "auth", "status"])
     configured_names: list[str] = []

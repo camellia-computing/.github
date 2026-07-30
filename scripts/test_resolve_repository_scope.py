@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tests for logical-to-physical repository scope resolution."""
 
 from __future__ import annotations

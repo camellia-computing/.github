@@ -33,6 +33,7 @@ AUTOMATION_SCOPE_KEYS = {
     "organization_secrets",
     "organization_variables",
     "repository_logical_ids",
+    "variable_value_policy",
 }
 ORGANIZATION_CONTROL_KEYS = {
     "actions_allowed_actions",
@@ -122,6 +123,10 @@ EXPECTED_POLICY_AUDITOR_PERMISSIONS = {
     "organization_administration": "read",
     "organization_secrets": "read",
 }
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REVIEWED_CONFIG_PATH = REPOSITORY_ROOT / "config/repository-policies.json"
+AUDIT_JSON_OUTPUT_PATH = REPOSITORY_ROOT / "audit-report.json"
+AUDIT_MARKDOWN_OUTPUT_PATH = REPOSITORY_ROOT / "audit-report.md"
 
 
 class API(Protocol):
@@ -299,8 +304,8 @@ def validate_config(config: dict[str, Any]) -> None:
             f"policy fields differ: expected {sorted(CONFIG_KEYS)}, "
             f"found {sorted(config)}"
         )
-    if config.get("schema_version") != 3:
-        raise ValueError("schema_version must be 3")
+    if config.get("schema_version") != 4:
+        raise ValueError("schema_version must be 4")
     organization = require_string(config, "organization")
     if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?", organization):
         raise ValueError("organization must be a valid GitHub owner")
@@ -603,6 +608,9 @@ def validate_config(config: dict[str, Any]) -> None:
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", scope_id):
             raise ValueError(f"invalid automation scope logical id: {scope_id}")
         scope_ids.append(scope_id)
+        variable_value_policy = require_string(scope, "variable_value_policy")
+        if variable_value_policy not in {"opaque", "repository-map"}:
+            raise ValueError(f"automation.{scope_id}.variable_value_policy is invalid")
         scope_secrets = require_sorted_unique_strings(
             scope.get("organization_secrets"),
             f"automation.{scope_id}.organization_secrets",
@@ -614,7 +622,16 @@ def validate_config(config: dict[str, Any]) -> None:
             allow_empty=True,
         )
         if not scope_secrets and not scope_variables:
-            raise ValueError(f"automation.{scope_id} must define credentials")
+            raise ValueError(
+                f"automation.{scope_id} must define an organization secret or variable"
+            )
+        if variable_value_policy == "repository-map" and (
+            scope_secrets or len(scope_variables) != 1
+        ):
+            raise ValueError(
+                f"automation.{scope_id} repository-map policy requires exactly "
+                "one variable and no secrets"
+            )
         for name in [*scope_secrets, *scope_variables]:
             if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
                 raise ValueError(f"automation.{scope_id} has an invalid Actions name")
@@ -1510,6 +1527,22 @@ def audit_automation_scopes(
     repositories_by_logical_id = {
         policy["logical_id"]: policy for policy in config["repositories"]
     }
+    expected_repository_maps = {
+        scope["organization_variables"][0]: (
+            scope["logical_id"],
+            json.dumps(
+                {
+                    logical_id: repositories_by_logical_id[logical_id]["name"]
+                    for logical_id in scope["repository_logical_ids"]
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ),
+        )
+        for scope in config.get("automation_scopes", [])
+        if scope["variable_value_policy"] == "repository-map"
+    }
     expected_names = {
         "secret": sorted(
             name
@@ -1563,6 +1596,20 @@ def audit_automation_scopes(
             visibility,
             {name: "selected" for name in expected_names[kind]},
         )
+        if kind == "variable":
+            actual_values = {
+                item.get("name"): item.get("value")
+                for item in entries
+                if isinstance(item, dict)
+                and item.get("name") in expected_repository_maps
+            }
+            for name, (scope_id, expected_value) in expected_repository_maps.items():
+                auditor.equal(
+                    "@organization",
+                    f"automation.{scope_id}.variable.{name}.value",
+                    actual_values.get(name),
+                    expected_value,
+                )
 
     for scope in config.get("automation_scopes", []):
         expected = sorted(
@@ -1763,21 +1810,6 @@ def write_report(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config/repository-policies.json"),
-    )
-    parser.add_argument(
-        "--json-output",
-        type=Path,
-        default=Path("audit-report.json"),
-    )
-    parser.add_argument(
-        "--markdown-output",
-        type=Path,
-        default=Path("audit-report.md"),
-    )
-    parser.add_argument(
         "--api-base-url",
         default=os.environ.get("GITHUB_API_URL", "https://api.github.com"),
     )
@@ -1790,7 +1822,7 @@ def main() -> int:
 
     report_organization = args.organization or "unavailable"
     try:
-        config = load_config(args.config)
+        config = load_config(REVIEWED_CONFIG_PATH)
         if args.organization:
             if not re.fullmatch(
                 r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?",
@@ -1839,7 +1871,7 @@ def main() -> int:
                 )
             ],
         }
-    write_report(report, args.json_output, args.markdown_output)
+    write_report(report, AUDIT_JSON_OUTPUT_PATH, AUDIT_MARKDOWN_OUTPUT_PATH)
     print(
         f"Repository policy audit: {report['status']} "
         f"({report['drift_count']} drift items)"

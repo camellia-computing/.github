@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """Regression tests for the organization repository policy auditor."""
 
 from __future__ import annotations
 
 import copy
+import json
 import unittest
 from pathlib import Path
 from typing import Any
@@ -460,6 +460,21 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
         repositories = {
             item["logical_id"]: item for item in self.config["repositories"]
         }
+        variable_values: dict[str, str] = {}
+        for scope in self.config["automation_scopes"]:
+            for name in scope["organization_variables"]:
+                value = "discarded"
+                if scope["variable_value_policy"] == "repository-map":
+                    value = json.dumps(
+                        {
+                            logical_id: repositories[logical_id]["name"]
+                            for logical_id in scope["repository_logical_ids"]
+                        },
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
+                variable_values[name] = value
         responses: dict[str, Any] = {
             f"orgs/{self.config['organization']}/actions/secrets?per_page=100": {
                 "total_count": sum(
@@ -478,9 +493,8 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
                     for scope in self.config["automation_scopes"]
                 ),
                 "variables": [
-                    {"name": name, "visibility": "selected", "value": "discarded"}
-                    for scope in self.config["automation_scopes"]
-                    for name in scope["organization_variables"]
+                    {"name": name, "visibility": "selected", "value": value}
+                    for name, value in variable_values.items()
                 ],
             },
         }
@@ -524,6 +538,14 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
             }
         )
         responses[variable_endpoint]["total_count"] += 1
+        repository_map = next(
+            item
+            for item in responses[
+                f"orgs/{self.config['organization']}/actions/variables?per_page=30"
+            ]["variables"]
+            if item["name"] == "NEXUS_REPOSITORY_MAP"
+        )
+        repository_map["value"] = "{}"
         auditor = audit.Auditor()
         audit.audit_automation_scopes(
             FakeAPI(responses),
@@ -534,6 +556,10 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
         controls = {item.control for item in auditor.drifts}
         self.assertIn(
             "automation.release-manager.variable.RELEASE_APP_CLIENT_ID.repositories",
+            controls,
+        )
+        self.assertIn(
+            "automation.nexus-repository-map.variable.NEXUS_REPOSITORY_MAP.value",
             controls,
         )
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Regression tests for the Policy Auditor GitHub App manifest."""
 
 from __future__ import annotations

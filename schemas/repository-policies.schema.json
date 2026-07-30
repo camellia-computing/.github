@@ -29,7 +29,7 @@
       "type": "string"
     },
     "schema_version": {
-      "const": 3
+      "const": 4
     },
     "policy_revision": {
       "type": "string",
@@ -57,7 +57,8 @@
           "logical_id",
           "organization_secrets",
           "organization_variables",
-          "repository_logical_ids"
+          "repository_logical_ids",
+          "variable_value_policy"
         ],
         "properties": {
           "logical_id": {
@@ -88,6 +89,12 @@
               "type": "string",
               "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
+          },
+          "variable_value_policy": {
+            "enum": [
+              "opaque",
+              "repository-map"
+            ]
           }
         }
       }

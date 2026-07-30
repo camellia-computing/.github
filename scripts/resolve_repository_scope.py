@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
+
+from audit_repository_policies import REVIEWED_CONFIG_PATH
 
 
 def repository_names(config_path: Path) -> list[str]:
@@ -35,22 +36,10 @@ def repository_names(config_path: Path) -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config/repository-policies.json"),
-    )
-    parser.add_argument("--github-output", type=Path)
-    args = parser.parse_args()
-    rendered = "\n".join(repository_names(args.config))
-    if args.github_output:
-        with args.github_output.open("a", encoding="utf-8") as output:
-            output.write("repositories<<POLICY_REPOSITORIES\n")
-            output.write(rendered)
-            output.write("\nPOLICY_REPOSITORIES\n")
-    else:
-        print(rendered)
+    rendered = "\n".join(repository_names(REVIEWED_CONFIG_PATH))
+    print("repositories<<POLICY_REPOSITORIES")
+    print(rendered)
+    print("POLICY_REPOSITORIES")
 
 
 if __name__ == "__main__":

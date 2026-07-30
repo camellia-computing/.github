@@ -1,13 +1,14 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
-  "schema_version": 3,
-  "policy_revision": "2026-07-30.2",
+  "schema_version": 4,
+  "policy_revision": "2026-07-30.3",
   "organization": "camellia-computing",
   "organization_id": 309967130,
   "last_reviewed_on": "2026-07-30",
   "automation_scopes": [
     {
       "logical_id": "desktop-windows-publisher",
+      "variable_value_policy": "opaque",
       "organization_secrets": [
         "WINDOWS_CODESIGN_PFX_BASE64",
         "WINDOWS_CODESIGN_PFX_PASSWORD"
@@ -23,7 +24,20 @@
       ]
     },
     {
+      "logical_id": "nexus-repository-map",
+      "variable_value_policy": "repository-map",
+      "organization_secrets": [],
+      "organization_variables": [
+        "NEXUS_REPOSITORY_MAP"
+      ],
+      "repository_logical_ids": [
+        "nexus-client",
+        "nexus-management"
+      ]
+    },
+    {
       "logical_id": "release-manager",
+      "variable_value_policy": "opaque",
       "organization_secrets": [
         "RELEASE_APP_PRIVATE_KEY"
       ],

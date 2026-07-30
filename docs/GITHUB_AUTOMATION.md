@@ -46,6 +46,17 @@ Fork and Dependabot contexts continue without its key. A partial pair fails.
 The physical source and consumer repository names come from each product's
 logical repository map.
 
+## Cross-repository name maps
+
+Cross-repository workflows resolve mutable physical names through reviewed
+organization variables instead of embedding sibling repository names. The
+Nexus pair receives `NEXUS_REPOSITORY_MAP`, a canonical JSON object from
+logical repository ID to current physical name. Its value and selected
+repository scope are derived from `repository-policies.json` and checked by the
+organization audit. Rename a repository by updating the policy and this single
+organization variable in the same reviewed rollout; artifact IDs and product
+contracts remain stable.
+
 ## Local Actions and templates
 
 Security-critical release logic remains local to each repository so a rename,
@@ -78,6 +89,8 @@ evidence belongs in immutable Releases or registries.
 - Prefer OIDC and installation tokens over long-lived credentials.
 - Treat identifiers and Client IDs as non-secret; private keys, signing
   containers, tokens and passwords are secrets.
+- Treat repository-map variables as public routing configuration. Keep every
+  other organization variable value opaque to policy reports.
 - Validate optional credentials as atomic groups: wholly absent may select a
   documented lower mode, partially present is always an error.
 - After changing an App permission, require owner approval and rerun every

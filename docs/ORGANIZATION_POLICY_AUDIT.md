@@ -19,8 +19,10 @@ The App needs repository Administration, Contents and Metadata read, plus
 Members, Organization administration, Variables and Secrets read at
 organization level. It has no write permission. Variables and Secrets read are
 used to inventory names, visibility and selected repository metadata; secret
-values cannot be read, and variable values are discarded in memory without
-being retained or reported. Install the App for all organization repositories.
+values cannot be read. Ordinary variable values are discarded in memory
+without being retained or reported. Reviewed repository-map values contain only
+public logical/physical names and are compared exactly. Install the App for all
+organization repositories.
 The workflow scopes its ordinary audit token back to the reviewed logical map,
 while a separate read-only token verifies the complete installation inventory.
 A partial credential group, unexpected App slug, unmanaged repository or
@@ -62,6 +64,8 @@ Organization checks cover:
 - mandatory 2FA and a minimum of two owners without naming individuals;
 - immutable organization identity, exact repository inventory and exact shared
   automation/signing credential scopes;
+- exact logical-to-physical values and selected scope for reviewed
+  cross-repository name-map variables;
 - no default repository access;
 - disabled member repository, Pages, deletion and visibility changes;
 - no outside collaborators or pending invitations;

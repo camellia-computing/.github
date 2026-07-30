@@ -27,7 +27,7 @@ jobs:
 
       - name: Resolve audited repository scope
         id: scope
-        run: python3 scripts/resolve_repository_scope.py --github-output "$GITHUB_OUTPUT"
+        run: python3 scripts/resolve_repository_scope.py >> "$GITHUB_OUTPUT"
 
       - name: Require audit App configuration
         id: configuration
@@ -87,9 +87,7 @@ jobs:
           POLICY_AUDIT_INSTALLATION_ID: ${{ steps.app-token.outputs.installation-id }}
         run: |
           set +e
-          python3 scripts/audit_repository_policies.py \
-            --json-output audit-report.json \
-            --markdown-output audit-report.md
+          python3 scripts/audit_repository_policies.py
           status=$?
           set -e
           cat audit-report.md >> "$GITHUB_STEP_SUMMARY"

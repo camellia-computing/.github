@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Regression tests for immutable release evidence validation."""
 
 from __future__ import annotations

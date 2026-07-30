@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """End-to-end regression tests for local signing-material generators."""
 
 from __future__ import annotations

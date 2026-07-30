@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import subprocess
@@ -11,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from audit_repository_policies import load_config, validate_config
+from audit_repository_policies import REPOSITORY_ROOT, load_config, validate_config
 
 OWNER_LITERAL_ALLOWLIST = {
     ".github/CODEOWNERS",
@@ -231,30 +230,9 @@ def audit_portability(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--root",
-        type=Path,
-        default=Path(__file__).resolve().parents[1],
-    )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config/repository-policies.json"),
-    )
-    parser.add_argument(
-        "--rename-fixture",
-        type=Path,
-        default=Path("scripts/fixtures/repository-rename.json"),
-    )
-    args = parser.parse_args()
-    root = args.root.resolve()
-    config_path = args.config if args.config.is_absolute() else root / args.config
-    fixture_path = (
-        args.rename_fixture
-        if args.rename_fixture.is_absolute()
-        else root / args.rename_fixture
-    )
+    root = REPOSITORY_ROOT
+    config_path = root / "config/repository-policies.json"
+    fixture_path = root / "scripts/fixtures/repository-rename.json"
     errors = audit_portability(root, config_path, fixture_path)
     if errors:
         for error in errors:

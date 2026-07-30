@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Regression tests for the non-secret signing policy validator."""
 
 from __future__ import annotations
