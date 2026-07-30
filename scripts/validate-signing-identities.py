@@ -259,14 +259,12 @@ def reject_tracked_sensitive_files(repository: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "registry",
-        nargs="?",
-        default="config/signing-identities.json",
-    )
-    args = parser.parse_args()
-    path = Path(args.registry)
+    argparse.ArgumentParser(
+        description="Validate the repository's canonical signing identity registry."
+    ).parse_args()
+    path = Path(__file__).resolve().parent.parent / "config" / "signing-identities.json"
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("registry must be a regular, non-symbolic-link file")
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise TypeError("registry root must be an object")

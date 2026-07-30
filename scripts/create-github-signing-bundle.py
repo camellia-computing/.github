@@ -118,8 +118,16 @@ def load_public_identity(path: Path) -> Any:
 
 
 def write_file(path: Path, payload: bytes, mode: int) -> None:
-    with path.open("xb") as handle:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags, mode)
+    with os.fdopen(descriptor, "wb") as handle:
         handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
     os.chmod(path, mode)
 
 
