@@ -267,6 +267,8 @@ def main() -> None:
     )
     args = parser.parse_args()
     path = Path(args.registry)
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("registry must be a regular, non-symbolic-link file")
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise TypeError("registry root must be an object")

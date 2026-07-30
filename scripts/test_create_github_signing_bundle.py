@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -89,6 +90,19 @@ class GitHubSigningBundleTests(unittest.TestCase):
                 ),
                 "test-password",
             )
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(bundle.stat().st_mode), 0o700)
+                self.assertEqual(
+                    stat.S_IMODE((bundle / "secrets").stat().st_mode), 0o700
+                )
+                for secret in (
+                    "WINDOWS_CODESIGN_PFX_BASE64",
+                    "WINDOWS_CODESIGN_PFX_PASSWORD",
+                ):
+                    self.assertEqual(
+                        stat.S_IMODE((bundle / "secrets" / secret).stat().st_mode),
+                        0o600,
+                    )
 
             metadata = json.loads(
                 (bundle / "metadata.json").read_text(encoding="utf-8")
