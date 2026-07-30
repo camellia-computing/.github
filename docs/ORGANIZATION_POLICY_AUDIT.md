@@ -34,6 +34,10 @@ Provision the App once from an authenticated organization-owner workstation:
 python3 scripts/bootstrap_policy_auditor.py --apply
 ```
 
+The bootstrap keeps its local bridge alive when automatic browser launch is
+unavailable and prints the exact registration or installation URL to open.
+Use `--no-open` to always handle both browser stages manually.
+
 The local manifest bridge derives the owner, governance repository, immutable
 organization identity and permissions from the reviewed policy. GitHub still
 requires an owner to confirm registration and an all-repositories installation

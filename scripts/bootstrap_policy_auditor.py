@@ -69,23 +69,30 @@ def run_checked(
     )
 
 
-def open_browser(url: str) -> None:
-    powershell = shutil.which("powershell.exe")
-    if powershell:
-        run_checked(
-            [
-                powershell,
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "Start-Process -FilePath $args[0]",
-                url,
-            ]
-        )
-        return
-    if not webbrowser.open(url, new=1):
-        raise RuntimeError(f"could not open a browser; navigate to {url}")
+def open_browser(url: str) -> bool:
+    for executable_name in ("pwsh.exe", "powershell.exe"):
+        powershell = shutil.which(executable_name)
+        if not powershell:
+            continue
+        try:
+            run_checked(
+                [
+                    powershell,
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "Start-Process -FilePath $args[0]",
+                    url,
+                ]
+            )
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        return True
+    try:
+        return bool(webbrowser.open(url, new=1))
+    except webbrowser.Error:
+        return False
 
 
 class ManifestServer(ThreadingHTTPServer):
@@ -219,8 +226,11 @@ def receive_manifest_conversion(
     thread.start()
     registration_url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Open the local registration bridge: {registration_url}")
-    if launch_browser:
-        open_browser(registration_url)
+    if launch_browser and not open_browser(registration_url):
+        print(
+            f"Browser launch unavailable; navigate to {registration_url}",
+            file=sys.stderr,
+        )
     deadline = time.monotonic() + timeout_seconds
     try:
         while (
@@ -330,10 +340,19 @@ def wait_for_installation(
     config: dict[str, Any],
     slug: str,
     timeout_seconds: int,
+    *,
+    launch_browser: bool,
 ) -> dict[str, Any]:
     install_url = f"https://github.com/apps/{slug}/installations/new"
     print("Confirm an all-repositories organization installation in the browser.")
-    open_browser(install_url)
+    if launch_browser:
+        if not open_browser(install_url):
+            print(
+                f"Browser launch unavailable; navigate to {install_url}",
+                file=sys.stderr,
+            )
+    else:
+        print(f"Open the installation page: {install_url}")
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         installation = installed_app(config["organization"], slug)
@@ -375,7 +394,7 @@ def main() -> int:
     parser.add_argument(
         "--no-open",
         action="store_true",
-        help="Print the local bridge URL instead of opening a browser.",
+        help="Print browser URLs instead of opening them.",
     )
     parser.add_argument(
         "--apply",
@@ -432,6 +451,7 @@ def main() -> int:
         config,
         converted["slug"],
         args.timeout_seconds,
+        launch_browser=not args.no_open,
     )
     verify_installation(config, converted["slug"], installation)
     print(

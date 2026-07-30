@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import bootstrap_policy_auditor as bootstrap
 from audit_repository_policies import (
@@ -57,6 +58,43 @@ class PolicyAuditorBootstrapTests(unittest.TestCase):
         installation["permissions"]["issues"] = "write"
         with self.assertRaisesRegex(RuntimeError, "differs"):
             bootstrap.verify_installation(self.config, slug, installation)
+
+    def test_browser_launch_failure_is_nonfatal(self) -> None:
+        with (
+            patch.object(bootstrap.shutil, "which", return_value=None),
+            patch.object(bootstrap.webbrowser, "open", return_value=False),
+        ):
+            self.assertFalse(bootstrap.open_browser("http://127.0.0.1:12345/"))
+
+    def test_no_open_applies_to_installation_stage(self) -> None:
+        installation = {"app_slug": "portable-policy-auditor"}
+        with (
+            patch.object(bootstrap, "open_browser") as browser,
+            patch.object(bootstrap, "installed_app", return_value=installation),
+        ):
+            result = bootstrap.wait_for_installation(
+                self.config,
+                "portable-policy-auditor",
+                60,
+                launch_browser=False,
+            )
+        self.assertEqual(result, installation)
+        browser.assert_not_called()
+
+    def test_failed_installation_browser_launch_keeps_polling(self) -> None:
+        installation = {"app_slug": "portable-policy-auditor"}
+        with (
+            patch.object(bootstrap, "open_browser", return_value=False) as browser,
+            patch.object(bootstrap, "installed_app", return_value=installation),
+        ):
+            result = bootstrap.wait_for_installation(
+                self.config,
+                "portable-policy-auditor",
+                60,
+                launch_browser=True,
+            )
+        self.assertEqual(result, installation)
+        browser.assert_called_once()
 
 
 if __name__ == "__main__":
