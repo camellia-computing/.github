@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
   "schema_version": 5,
-  "policy_revision": "2026-07-31.1",
+  "policy_revision": "2026-07-31.2",
   "organization": "camellia-computing",
   "organization_id": 309967130,
   "last_reviewed_on": "2026-07-31",
@@ -28,7 +28,8 @@
       ],
       "organization_variables": [
         "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
-        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT"
+        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
+        "WINDOWS_SIGNING_TRUST_MODE"
       ],
       "repository_logical_ids": [
         "nexus-client",
