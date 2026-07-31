@@ -27,18 +27,25 @@ every group without printing values:
 - all fields present: import into an ephemeral store, derive its public
   identity and verify it against the protected expectation.
 
-Complete groups are classified by the platform verifier and sorted by the
-registry trust order. An invalid or partially configured stronger group blocks
-the release; it is never bypassed in favor of a weaker group. If no native
+An optional atomic extension adds capability to one complete parent group; for
+example, Apple notarization extends a certificate group without making private
+certificate signing depend on App Store Connect credentials. A partial
+extension or an extension without its complete parent fails.
+
+The first complete group in reviewed order is selected, normally `primary`
+then `secondary`. Its final bytes are classified by the platform verifier using
+the registry trust order. An invalid selected group blocks the release; it is
+never bypassed in favor of the next group. If no native
 credential exists, a formal unsigned artifact is allowed only when both the
 registry and protected release environment permit it.
 
 ## Rotation
 
 Desktop certificate rotation may configure `primary` and `secondary` groups
-for at most `rotation_max_days`. Selection is based on verified trust, not the
-group name. Remove the retired group after the overlap and publish a new
-version if distributed bytes change.
+for at most `rotation_max_days`. Promote the new identity to `primary` in one
+reviewed configuration change before retiring the old group. Remove the
+retired group after the overlap and publish a new version if distributed bytes
+change.
 
 Android update identity replacement is not an ordinary certificate rotation.
 Its zero-day overlap policy requires a platform-supported signing lineage and

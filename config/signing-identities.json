@@ -1,9 +1,9 @@
 {
   "$schema": "../schemas/signing-identities.schema.json",
-  "schema_version": 2,
-  "registry_revision": "2026-07-29.1",
+  "schema_version": 3,
+  "registry_revision": "2026-07-31.1",
   "organization": "camellia-computing",
-  "last_reviewed_on": "2026-07-29",
+  "last_reviewed_on": "2026-07-31",
   "trust_priority": [
     "public-trust",
     "private-trust",
@@ -36,6 +36,7 @@
           ]
         }
       ],
+      "credential_extensions": [],
       "verification_adapter": "openpgp",
       "rotation_max_days": 30,
       "note": "Detached signatures are verified from the downloaded artifact; the configured fingerprint is only an expected-identity constraint."
@@ -58,13 +59,10 @@
         {
           "id": "primary",
           "secret_names": [
-            "APPLE_API_PRIVATE_KEY",
             "APPLE_CERTIFICATE",
             "APPLE_CERTIFICATE_PASSWORD"
           ],
           "variable_names": [
-            "APPLE_API_ISSUER",
-            "APPLE_API_KEY",
             "APPLE_SIGNING_CERTIFICATE_SHA256",
             "APPLE_SIGNING_IDENTITY"
           ]
@@ -72,15 +70,36 @@
         {
           "id": "secondary",
           "secret_names": [
-            "APPLE_SECONDARY_API_PRIVATE_KEY",
             "APPLE_SECONDARY_CERTIFICATE",
             "APPLE_SECONDARY_CERTIFICATE_PASSWORD"
           ],
           "variable_names": [
-            "APPLE_SECONDARY_API_ISSUER",
-            "APPLE_SECONDARY_API_KEY",
             "APPLE_SECONDARY_SIGNING_CERTIFICATE_SHA256",
             "APPLE_SECONDARY_SIGNING_IDENTITY"
+          ]
+        }
+      ],
+      "credential_extensions": [
+        {
+          "id": "primary-notarization",
+          "parent_group": "primary",
+          "secret_names": [
+            "APPLE_API_PRIVATE_KEY"
+          ],
+          "variable_names": [
+            "APPLE_API_ISSUER",
+            "APPLE_API_KEY"
+          ]
+        },
+        {
+          "id": "secondary-notarization",
+          "parent_group": "secondary",
+          "secret_names": [
+            "APPLE_SECONDARY_API_PRIVATE_KEY"
+          ],
+          "variable_names": [
+            "APPLE_SECONDARY_API_ISSUER",
+            "APPLE_SECONDARY_API_KEY"
           ]
         }
       ],
@@ -110,8 +129,7 @@
           ],
           "variable_names": [
             "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
-            "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
-            "WINDOWS_TIMESTAMP_URL"
+            "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT"
           ]
         },
         {
@@ -122,11 +140,11 @@
           ],
           "variable_names": [
             "WINDOWS_SECONDARY_CODESIGN_CERTIFICATE_SHA256",
-            "WINDOWS_SECONDARY_CODESIGN_CERTIFICATE_THUMBPRINT",
-            "WINDOWS_SECONDARY_TIMESTAMP_URL"
+            "WINDOWS_SECONDARY_CODESIGN_CERTIFICATE_THUMBPRINT"
           ]
         }
       ],
+      "credential_extensions": [],
       "verification_adapter": "authenticode",
       "rotation_max_days": 30,
       "note": "Authenticode trust is derived from native verification; a configured trust label cannot promote an untrusted certificate."
@@ -156,6 +174,7 @@
           ]
         }
       ],
+      "credential_extensions": [],
       "verification_adapter": "android-apksigner",
       "rotation_max_days": 0,
       "note": "The application update identity is stable; replacement requires a platform-supported signing lineage rather than an ordinary overlap."
@@ -188,6 +207,7 @@
           ]
         }
       ],
+      "credential_extensions": [],
       "verification_adapter": "apple-mobile-codesign",
       "rotation_max_days": 30,
       "note": "The certificate, provisioning profile, Team ID, bundle identifier and export method are verified as one atomic platform identity."

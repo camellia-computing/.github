@@ -22,7 +22,7 @@ def load_validator() -> ModuleType:
 def policy() -> dict:
     return {
         "repository_policy_revision": "2026-07-31.1",
-        "signing_registry_revision": "2026-07-29.1",
+        "signing_registry_revision": "2026-07-31.1",
         "exceptions": [],
     }
 
