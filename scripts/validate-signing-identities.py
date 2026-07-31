@@ -236,7 +236,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
             )
         credential_extensions = identity.get("credential_extensions")
         if not isinstance(credential_extensions, list):
-            raise ValueError(f"{identity_id} credential extensions must be an array")
+            raise TypeError(f"{identity_id} credential extensions must be an array")
         extension_ids: list[str] = []
         for extension in credential_extensions:
             if (

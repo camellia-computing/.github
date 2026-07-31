@@ -548,8 +548,7 @@ def validate_config(config: dict[str, Any]) -> None:
             )
             if unknown_platforms := sorted(set(platforms) - CONTAINER_PLATFORMS):
                 raise ValueError(
-                    f"{name} container has unsupported platforms: "
-                    f"{unknown_platforms}"
+                    f"{name} container has unsupported platforms: {unknown_platforms}"
                 )
             registries = container.get("registries")
             if (
@@ -751,9 +750,7 @@ def validate_config(config: dict[str, Any]) -> None:
         if variable_value_policy in {
             "container-registry-map",
             "repository-map",
-        } and (
-            scope_secrets or len(scope_variables) != 1
-        ):
+        } and (scope_secrets or len(scope_variables) != 1):
             raise ValueError(
                 f"automation.{scope_id} mapped-value policy requires exactly "
                 "one variable and no secrets"
@@ -1844,8 +1841,7 @@ def audit_automation_scopes(
             actual_values = {
                 item.get("name"): item.get("value")
                 for item in entries
-                if isinstance(item, dict)
-                and item.get("name") in expected_mapped_values
+                if isinstance(item, dict) and item.get("name") in expected_mapped_values
             }
             for name, (scope_id, expected_value) in expected_mapped_values.items():
                 auditor.equal(

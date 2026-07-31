@@ -93,9 +93,7 @@ IMAGE_SIGNATURE_KEYS = {
     "evidence",
 }
 LOGICAL_ID_PATTERN = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-SEMVER_PATTERN = (
-    r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?"
-)
+SEMVER_PATTERN = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?"
 REVISION_PATTERN = r"20[0-9]{2}-[0-9]{2}-[0-9]{2}\.[1-9][0-9]*"
 DIGEST_PATTERN = r"sha256:[0-9a-f]{64}"
 
@@ -132,7 +130,9 @@ def validate_logical_id(value: Any, location: str) -> str:
 
 def validate_semver(value: Any, location: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(SEMVER_PATTERN, value):
-        raise ValueError(f"{location} must be SemVer without v prefix or build metadata")
+        raise ValueError(
+            f"{location} must be SemVer without v prefix or build metadata"
+        )
     return value
 
 
@@ -174,7 +174,9 @@ def validate_signing(
     verifier = require_string(value, "verifier")
     timestamp = require_string(value, "timestamp")
     distribution = require_string(value, "distribution")
-    evidence = require_sorted_unique_strings(value.get("evidence"), f"{location}.evidence")
+    evidence = require_sorted_unique_strings(
+        value.get("evidence"), f"{location}.evidence"
+    )
     if category not in CATEGORIES:
         raise ValueError(f"{location}.category is invalid")
     if verification not in {"verified", "not-present", "not-applicable"}:
@@ -193,7 +195,9 @@ def validate_signing(
         ):
             raise ValueError(f"{location} contradicts its not-applicable category")
         if platform not in {"source", "web"}:
-            raise ValueError(f"{location} is not applicable only to source or Web files")
+            raise ValueError(
+                f"{location} is not applicable only to source or Web files"
+            )
     elif category == "unsigned":
         if verification != "not-present" or verifier != "none":
             raise ValueError(f"{location} contradicts its unsigned category")
@@ -205,20 +209,23 @@ def validate_signing(
     if platform in {"source", "web"} and category != "not-applicable":
         raise ValueError(f"{location} source and Web files use not-applicable signing")
     if distribution == "source-only" and platform != "source":
-        raise ValueError(f"{location} source-only distribution requires source platform")
+        raise ValueError(
+            f"{location} source-only distribution requires source platform"
+        )
     if distribution == "not-applicable" and platform not in {"source", "web"}:
         raise ValueError(
             f"{location} not-applicable distribution requires source or Web platform"
         )
     if distribution == "re-signing-input" and platform not in {"android", "ios"}:
+        raise ValueError(f"{location} re-signing inputs are limited to Android and iOS")
+    if (
+        category == "unsigned"
+        and platform in {"android", "ios"}
+        and distribution != "re-signing-input"
+    ):
         raise ValueError(
-            f"{location} re-signing inputs are limited to Android and iOS"
+            f"{location} unsigned mobile output must be a re-signing input"
         )
-    if category == "unsigned" and platform in {"android", "ios"}:
-        if distribution != "re-signing-input":
-            raise ValueError(
-                f"{location} unsigned mobile output must be a re-signing input"
-            )
     if category == "ad-hoc" and distribution == "installable":
         raise ValueError(
             f"{location} ad-hoc artifacts cannot claim installable distribution"
@@ -242,7 +249,7 @@ def validate_policy(
     )
     exceptions = value.get("exceptions")
     if not isinstance(exceptions, list):
-        raise ValueError("policy.exceptions must be an array")
+        raise TypeError("policy.exceptions must be an array")
     exception_ids: list[str] = []
     for index, exception in enumerate(exceptions):
         location = f"policy.exceptions[{index}]"
@@ -270,7 +277,7 @@ def validate_policy(
 
 def validate_dependencies(value: Any) -> None:
     if not isinstance(value, list):
-        raise ValueError("dependencies must be an array")
+        raise TypeError("dependencies must be an array")
     identities: list[tuple[str, str, str]] = []
     for index, dependency in enumerate(value):
         location = f"dependencies[{index}]"
@@ -299,7 +306,7 @@ def validate_dependencies(value: Any) -> None:
 
 def validate_files(value: Any) -> None:
     if not isinstance(value, list):
-        raise ValueError("files must be an array")
+        raise TypeError("files must be an array")
     names: list[str] = []
     for index, artifact in enumerate(value):
         location = f"files[{index}]"
@@ -352,7 +359,7 @@ def validate_registry(
     commit: str,
 ) -> tuple[str, str]:
     if not isinstance(value, dict):
-        raise ValueError(f"{location} must be an object")
+        raise TypeError(f"{location} must be an object")
     name = require_string(value, "name")
     if name not in REGISTRIES:
         raise ValueError(f"{location}.name is invalid")
@@ -361,7 +368,9 @@ def validate_registry(
         if set(value) != SKIPPED_REGISTRY_KEYS:
             raise ValueError(f"{location} skipped result has unexpected fields")
         reason = require_string(value, "reason")
-        expected_reason = "candidate-only" if release_kind == "candidate" else "not-configured"
+        expected_reason = (
+            "candidate-only" if release_kind == "candidate" else "not-configured"
+        )
         if reason != expected_reason:
             raise ValueError(
                 f"{location} skipped {release_kind} result must use {expected_reason}"
@@ -403,7 +412,7 @@ def validate_images(
     commit: str,
 ) -> None:
     if not isinstance(value, list):
-        raise ValueError("images must be an array")
+        raise TypeError("images must be an array")
     names: list[str] = []
     for index, image in enumerate(value):
         location = f"images[{index}]"
@@ -419,10 +428,7 @@ def validate_images(
         platform_digests: list[str] = []
         for platform_index, platform in enumerate(platforms):
             platform_location = f"{location}.platforms[{platform_index}]"
-            if (
-                not isinstance(platform, dict)
-                or set(platform) != IMAGE_PLATFORM_KEYS
-            ):
+            if not isinstance(platform, dict) or set(platform) != IMAGE_PLATFORM_KEYS:
                 raise ValueError(f"{platform_location} has unexpected fields")
             if platform.get("platform") != "linux":
                 raise ValueError(f"{platform_location}.platform must be linux")
