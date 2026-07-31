@@ -1,11 +1,24 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
-  "schema_version": 4,
-  "policy_revision": "2026-07-30.3",
+  "schema_version": 5,
+  "policy_revision": "2026-07-31.1",
   "organization": "camellia-computing",
   "organization_id": 309967130,
-  "last_reviewed_on": "2026-07-30",
+  "last_reviewed_on": "2026-07-31",
   "automation_scopes": [
+    {
+      "logical_id": "container-registry-map",
+      "variable_value_policy": "container-registry-map",
+      "organization_secrets": [],
+      "organization_variables": [
+        "CONTAINER_REGISTRY_MAP"
+      ],
+      "repository_logical_ids": [
+        "nexus-management",
+        "remote-management",
+        "remote-server"
+      ]
+    },
     {
       "logical_id": "desktop-windows-publisher",
       "variable_value_policy": "opaque",
@@ -15,8 +28,7 @@
       ],
       "organization_variables": [
         "WINDOWS_CODESIGN_CERTIFICATE_SHA256",
-        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT",
-        "WINDOWS_SIGNING_TRUST_MODE"
+        "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT"
       ],
       "repository_logical_ids": [
         "nexus-client",
@@ -50,6 +62,20 @@
         "nexus-management",
         "remote-client",
         "remote-management",
+        "remote-server"
+      ]
+    },
+    {
+      "logical_id": "remote-repository-map",
+      "variable_value_policy": "repository-map",
+      "organization_secrets": [],
+      "organization_variables": [
+        "REMOTE_REPOSITORY_MAP"
+      ],
+      "repository_logical_ids": [
+        "remote-client",
+        "remote-management",
+        "remote-protocol",
         "remote-server"
       ]
     }
@@ -112,6 +138,7 @@
   "repositories": [
     {
       "artifact_ids": [],
+      "container": null,
       "logical_id": "governance",
       "name": ".github",
       "repository_id": 1314440454,
@@ -150,6 +177,7 @@
       "artifact_ids": [
         "nexus-client"
       ],
+      "container": null,
       "logical_id": "nexus-client",
       "name": "nexus",
       "repository_id": 1314465372,
@@ -163,16 +191,18 @@
         }
       ],
       "required_status_checks": [
-        "Gate",
-        "Public API"
+        "CI / Required"
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
+        ".github/workflows/merge.yml",
         ".github/workflows/publish-release.yml",
         ".github/workflows/release-manager.yml"
       ],
       "release": {
+        "allow_admin_bypass": false,
         "review_team": "nexus",
         "deployment_policies": [
           {
@@ -190,6 +220,15 @@
       "artifact_ids": [
         "nexus-management-service"
       ],
+      "container": {
+        "platforms": [
+          "linux/amd64"
+        ],
+        "registries": {
+          "dockerhub": null,
+          "ghcr": "nexus-management-server"
+        }
+      },
       "logical_id": "nexus-management",
       "name": "nexus-management-server",
       "repository_id": 1314465604,
@@ -203,16 +242,18 @@
         }
       ],
       "required_status_checks": [
-        "Gate",
-        "Public API"
+        "CI / Required"
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
+        ".github/workflows/merge.yml",
         ".github/workflows/publish-release.yml",
         ".github/workflows/release-manager.yml"
       ],
       "release": {
+        "allow_admin_bypass": false,
         "review_team": "nexus",
         "deployment_policies": [
           {
@@ -230,6 +271,7 @@
       "artifact_ids": [
         "remote-client"
       ],
+      "container": null,
       "logical_id": "remote-client",
       "name": "remote-client",
       "repository_id": 1314464755,
@@ -247,15 +289,23 @@
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
-        ".github/workflows/release.yml"
+        ".github/workflows/merge.yml",
+        ".github/workflows/publish-release.yml",
+        ".github/workflows/release-manager.yml"
       ],
       "release": {
+        "allow_admin_bypass": false,
         "review_team": "remote",
         "deployment_policies": [
           {
             "name": "main",
             "type": "branch"
+          },
+          {
+            "name": "v*",
+            "type": "tag"
           }
         ]
       }
@@ -264,6 +314,16 @@
       "artifact_ids": [
         "remote-management-service"
       ],
+      "container": {
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "registries": {
+          "dockerhub": null,
+          "ghcr": "remote-management-server"
+        }
+      },
       "logical_id": "remote-management",
       "name": "remote-management-server",
       "repository_id": 1314465182,
@@ -281,15 +341,23 @@
       ],
       "required_paths": [
         ".github/CODEOWNERS",
+        ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
-        ".github/workflows/release.yml"
+        ".github/workflows/merge.yml",
+        ".github/workflows/publish-release.yml",
+        ".github/workflows/release-manager.yml"
       ],
       "release": {
+        "allow_admin_bypass": false,
         "review_team": "remote",
         "deployment_policies": [
           {
             "name": "main",
             "type": "branch"
+          },
+          {
+            "name": "v*",
+            "type": "tag"
           }
         ]
       }
@@ -298,6 +366,7 @@
       "artifact_ids": [
         "remote-protocol"
       ],
+      "container": null,
       "logical_id": "remote-protocol",
       "name": "remote-protocol",
       "repository_id": 1314665994,
@@ -323,6 +392,16 @@
       "artifact_ids": [
         "remote-server"
       ],
+      "container": {
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "registries": {
+          "dockerhub": null,
+          "ghcr": "remote-server"
+        }
+      },
       "logical_id": "remote-server",
       "name": "remote-server",
       "repository_id": 1314464947,
@@ -342,14 +421,21 @@
         ".github/CODEOWNERS",
         ".github/workflows/ci.yml",
         ".github/workflows/main.yml",
-        ".github/workflows/release.yml"
+        ".github/workflows/merge.yml",
+        ".github/workflows/publish-release.yml",
+        ".github/workflows/release-manager.yml"
       ],
       "release": {
+        "allow_admin_bypass": false,
         "review_team": "remote",
         "deployment_policies": [
           {
             "name": "main",
             "type": "branch"
+          },
+          {
+            "name": "v*",
+            "type": "tag"
           }
         ]
       }

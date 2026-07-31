@@ -54,8 +54,6 @@ class GitHubSigningBundleTests(unittest.TestCase):
                 str(identity),
                 "--variable",
                 "WINDOWS_CODESIGN_CERTIFICATE_SHA256=" + ("A" * 64),
-                "--variable",
-                "WINDOWS_SIGNING_TRUST_MODE=private-trust",
                 "--secret-base64",
                 f"WINDOWS_CODESIGN_PFX_BASE64={certificate}",
                 "--secret",
@@ -77,8 +75,7 @@ class GitHubSigningBundleTests(unittest.TestCase):
             self.assertTrue((bundle / "Upload.ps1").is_file())
             self.assertEqual(
                 (bundle / "variables.env").read_text(encoding="utf-8"),
-                "WINDOWS_CODESIGN_CERTIFICATE_SHA256=" + ("A" * 64) + "\n"
-                "WINDOWS_SIGNING_TRUST_MODE=private-trust\n",
+                "WINDOWS_CODESIGN_CERTIFICATE_SHA256=" + ("A" * 64) + "\n",
             )
             self.assertEqual(
                 (bundle / "secrets" / "WINDOWS_CODESIGN_PFX_BASE64").read_bytes(),
@@ -241,7 +238,7 @@ class GitHubSigningBundleTests(unittest.TestCase):
                         "--identity-file",
                         str(identity),
                         "--variable",
-                        "WINDOWS_SIGNING_TRUST_MODE=private-trust",
+                        "WINDOWS_CODESIGN_CERTIFICATE_SHA256=" + ("A" * 64),
                         "--secret",
                         f"WINDOWS_CODESIGN_PFX_PASSWORD={password}",
                     ]
@@ -261,7 +258,7 @@ class GitHubSigningBundleTests(unittest.TestCase):
                         "--identity-file",
                         str(identity),
                         "--variable",
-                        "WINDOWS_SIGNING_TRUST_MODE=private-trust",
+                        "WINDOWS_CODESIGN_CERTIFICATE_SHA256=" + ("A" * 64),
                         "--secret-base64",
                         f"WINDOWS_CODESIGN_PFX_BASE64={certificate}",
                         "--secret",

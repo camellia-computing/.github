@@ -66,11 +66,18 @@ IDENTITY_KEYS = {
     "allowed_outcomes",
     "formal_unsigned_allowed",
     "credential_groups",
+    "credential_extensions",
     "verification_adapter",
     "rotation_max_days",
     "note",
 }
 CREDENTIAL_GROUP_KEYS = {"id", "secret_names", "variable_names"}
+CREDENTIAL_EXTENSION_KEYS = {
+    "id",
+    "parent_group",
+    "secret_names",
+    "variable_names",
+}
 
 
 def require_string(mapping: dict[str, Any], name: str) -> str:
@@ -115,8 +122,8 @@ def validate_registry(registry: dict[str, Any]) -> None:
             f"registry fields differ: expected {sorted(REGISTRY_KEYS)}, "
             f"found {sorted(registry)}"
         )
-    if registry.get("schema_version") != 2:
-        raise ValueError("schema_version must be 2")
+    if registry.get("schema_version") != 3:
+        raise ValueError("schema_version must be 3")
     organization = require_string(registry, "organization")
     if not re.fullmatch(
         r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?",
@@ -226,6 +233,45 @@ def validate_registry(registry: dict[str, Any]) -> None:
         if group_ids != sorted(set(group_ids)):
             raise ValueError(
                 f"{identity_id} credential groups must be sorted and unique"
+            )
+        credential_extensions = identity.get("credential_extensions")
+        if not isinstance(credential_extensions, list):
+            raise TypeError(f"{identity_id} credential extensions must be an array")
+        extension_ids: list[str] = []
+        for extension in credential_extensions:
+            if (
+                not isinstance(extension, dict)
+                or set(extension) != CREDENTIAL_EXTENSION_KEYS
+            ):
+                raise ValueError(f"{identity_id} has an invalid credential extension")
+            extension_id = require_string(extension, "id")
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", extension_id):
+                raise ValueError(
+                    f"{identity_id} has an invalid credential extension id"
+                )
+            extension_ids.append(extension_id)
+            parent_group = require_string(extension, "parent_group")
+            if parent_group not in group_ids:
+                raise ValueError(
+                    f"{identity_id}.{extension_id} has an unknown parent group"
+                )
+            names = validate_names(
+                extension.get("secret_names"),
+                f"{identity_id}.{extension_id}.secret_names",
+            )
+            names += validate_names(
+                extension.get("variable_names"),
+                f"{identity_id}.{extension_id}.variable_names",
+            )
+            overlap = all_names.intersection(names)
+            if overlap:
+                raise ValueError(
+                    f"{identity_id} reuses credential names: {sorted(overlap)}"
+                )
+            all_names.update(names)
+        if extension_ids != sorted(set(extension_ids)):
+            raise ValueError(
+                f"{identity_id} credential extensions must be sorted and unique"
             )
         require_string(identity, "note")
 

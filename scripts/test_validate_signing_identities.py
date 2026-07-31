@@ -63,6 +63,26 @@ class SigningPolicyValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "reuses credential names"):
             self.validator.validate_registry(registry)
 
+    def test_extension_requires_a_known_parent_and_unique_names(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        identity = next(
+            item for item in registry["identities"] if item["platform"] == "macos"
+        )
+        identity["credential_extensions"][0]["parent_group"] = "missing"
+        with self.assertRaisesRegex(ValueError, "unknown parent group"):
+            self.validator.validate_registry(registry)
+
+        registry = copy.deepcopy(self.registry)
+        identity = next(
+            item for item in registry["identities"] if item["platform"] == "macos"
+        )
+        identity["credential_extensions"][0]["variable_names"][0] = (
+            "APPLE_SIGNING_IDENTITY"
+        )
+        identity["credential_extensions"][0]["variable_names"].sort()
+        with self.assertRaisesRegex(ValueError, "reuses credential names"):
+            self.validator.validate_registry(registry)
+
     def test_consumer_is_a_portable_logical_id_not_a_fixed_allowlist(self) -> None:
         registry = copy.deepcopy(self.registry)
         registry["identities"][0]["consumers"] = ["future-client"]
