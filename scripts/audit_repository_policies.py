@@ -86,6 +86,7 @@ CODE_SECURITY_SETTING_KEYS = {
 }
 REPOSITORY_POLICY_KEYS = {
     "artifact_ids",
+    "container",
     "logical_id",
     "name",
     "repository_id",
@@ -98,11 +99,18 @@ REPOSITORY_POLICY_KEYS = {
     "release",
 }
 ACCESS_TEAM_KEYS = {"permission", "slug"}
-RELEASE_POLICY_KEYS = {"review_team", "deployment_policies"}
+CONTAINER_POLICY_KEYS = {"platforms", "registries"}
+CONTAINER_REGISTRY_KEYS = {"dockerhub", "ghcr"}
+RELEASE_POLICY_KEYS = {
+    "allow_admin_bypass",
+    "review_team",
+    "deployment_policies",
+}
 DEPLOYMENT_POLICY_KEYS = {"name", "type"}
 PROFILES = {"governance", "library", "release-client", "release-service"}
 PRODUCTS = {"organization", "nexus", "remote"}
 RELEASE_PROFILES = {"release-client", "release-service"}
+CONTAINER_PLATFORMS = {"linux/amd64", "linux/arm64"}
 TEAM_PERMISSIONS = {"pull", "triage", "push", "maintain", "admin"}
 EXPECTED_BRANCH_RULE_TYPES = {
     "code_scanning",
@@ -369,8 +377,8 @@ def validate_config(config: dict[str, Any]) -> None:
             f"policy fields differ: expected {sorted(CONFIG_KEYS)}, "
             f"found {sorted(config)}"
         )
-    if config.get("schema_version") != 4:
-        raise ValueError("schema_version must be 4")
+    if config.get("schema_version") != 5:
+        raise ValueError("schema_version must be 5")
     organization = require_string(config, "organization")
     if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?", organization):
         raise ValueError("organization must be a valid GitHub owner")
@@ -526,6 +534,50 @@ def validate_config(config: dict[str, Any]) -> None:
             policy.get("required_paths"),
             f"{name}.required_paths",
         )
+        container = policy.get("container")
+        if profile == "release-service" and not isinstance(container, dict):
+            raise ValueError(f"{name} release service requires container controls")
+        if profile != "release-service" and container is not None:
+            raise ValueError(f"{name} non-service profile cannot define a container")
+        if container is not None:
+            if set(container) != CONTAINER_POLICY_KEYS:
+                raise ValueError(f"{name} container policy has unexpected fields")
+            platforms = require_sorted_unique_strings(
+                container.get("platforms"),
+                f"{name}.container.platforms",
+            )
+            if unknown_platforms := sorted(set(platforms) - CONTAINER_PLATFORMS):
+                raise ValueError(
+                    f"{name} container has unsupported platforms: "
+                    f"{unknown_platforms}"
+                )
+            registries = container.get("registries")
+            if (
+                not isinstance(registries, dict)
+                or set(registries) != CONTAINER_REGISTRY_KEYS
+            ):
+                raise ValueError(f"{name} container registries are invalid")
+            ghcr = registries.get("ghcr")
+            dockerhub = registries.get("dockerhub")
+            if ghcr is not None and (
+                not isinstance(ghcr, str)
+                or not re.fullmatch(
+                    r"[a-z0-9]+(?:[._-][a-z0-9]+)*",
+                    ghcr,
+                )
+            ):
+                raise ValueError(f"{name} has an invalid GHCR image name")
+            if dockerhub is not None and (
+                not isinstance(dockerhub, str)
+                or not re.fullmatch(
+                    r"[a-z0-9]+(?:[._-][a-z0-9]+)*/"
+                    r"[a-z0-9]+(?:[._-][a-z0-9]+)*",
+                    dockerhub,
+                )
+            ):
+                raise ValueError(f"{name} has an invalid Docker Hub image name")
+            if ghcr is None and dockerhub is None:
+                raise ValueError(f"{name} must enable at least one container registry")
         release = policy.get("release")
         if profile in RELEASE_PROFILES and not isinstance(release, dict):
             raise ValueError(f"{name} release profile requires release controls")
@@ -537,6 +589,8 @@ def validate_config(config: dict[str, Any]) -> None:
             continue
         if set(release) != RELEASE_POLICY_KEYS:
             raise ValueError(f"{name} release policy has unexpected fields")
+        if release.get("allow_admin_bypass") is not False:
+            raise ValueError(f"{name} release environment must forbid admin bypass")
         team = require_string(release, "review_team")
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", team):
             raise ValueError(f"{name} has an invalid release review team")
@@ -674,7 +728,11 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(f"invalid automation scope logical id: {scope_id}")
         scope_ids.append(scope_id)
         variable_value_policy = require_string(scope, "variable_value_policy")
-        if variable_value_policy not in {"opaque", "repository-map"}:
+        if variable_value_policy not in {
+            "container-registry-map",
+            "opaque",
+            "repository-map",
+        }:
             raise ValueError(f"automation.{scope_id}.variable_value_policy is invalid")
         scope_secrets = require_sorted_unique_strings(
             scope.get("organization_secrets"),
@@ -690,13 +748,35 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(
                 f"automation.{scope_id} must define an organization secret or variable"
             )
-        if variable_value_policy == "repository-map" and (
+        if variable_value_policy in {
+            "container-registry-map",
+            "repository-map",
+        } and (
             scope_secrets or len(scope_variables) != 1
         ):
             raise ValueError(
-                f"automation.{scope_id} repository-map policy requires exactly "
+                f"automation.{scope_id} mapped-value policy requires exactly "
                 "one variable and no secrets"
             )
+        if variable_value_policy == "container-registry-map":
+            non_services = sorted(
+                logical_id
+                for logical_id in scope.get("repository_logical_ids", [])
+                if next(
+                    (
+                        policy
+                        for policy in config["repositories"]
+                        if policy["logical_id"] == logical_id
+                    ),
+                    {},
+                ).get("container")
+                is None
+            )
+            if non_services:
+                raise ValueError(
+                    f"automation.{scope_id} container map references "
+                    f"non-container repositories: {non_services}"
+                )
         for name in [*scope_secrets, *scope_variables]:
             if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
                 raise ValueError(f"automation.{scope_id} has an invalid Actions name")
@@ -993,6 +1073,12 @@ def audit_release_environment(
         "release_environment.deployment_branch_policy",
         environment.get("deployment_branch_policy"),
         {"custom_branch_policies": True, "protected_branches": False},
+    )
+    auditor.equal(
+        repository,
+        "release_environment.can_admins_bypass",
+        environment.get("can_admins_bypass"),
+        policy["release"]["allow_admin_bypass"],
     )
     protection_rules = environment.get("protection_rules")
     types = (
@@ -1675,22 +1761,32 @@ def audit_automation_scopes(
     repositories_by_logical_id = {
         policy["logical_id"]: policy for policy in config["repositories"]
     }
-    expected_repository_maps = {
-        scope["organization_variables"][0]: (
+    expected_mapped_values: dict[str, tuple[str, str]] = {}
+    for scope in config.get("automation_scopes", []):
+        value_policy = scope["variable_value_policy"]
+        if value_policy == "repository-map":
+            value = {
+                logical_id: repositories_by_logical_id[logical_id]["name"]
+                for logical_id in scope["repository_logical_ids"]
+            }
+        elif value_policy == "container-registry-map":
+            value = {
+                logical_id: repositories_by_logical_id[logical_id]["container"][
+                    "registries"
+                ]
+                for logical_id in scope["repository_logical_ids"]
+            }
+        else:
+            continue
+        expected_mapped_values[scope["organization_variables"][0]] = (
             scope["logical_id"],
             json.dumps(
-                {
-                    logical_id: repositories_by_logical_id[logical_id]["name"]
-                    for logical_id in scope["repository_logical_ids"]
-                },
+                value,
                 ensure_ascii=False,
                 separators=(",", ":"),
                 sort_keys=True,
             ),
         )
-        for scope in config.get("automation_scopes", [])
-        if scope["variable_value_policy"] == "repository-map"
-    }
     expected_names = {
         "secret": sorted(
             name
@@ -1749,9 +1845,9 @@ def audit_automation_scopes(
                 item.get("name"): item.get("value")
                 for item in entries
                 if isinstance(item, dict)
-                and item.get("name") in expected_repository_maps
+                and item.get("name") in expected_mapped_values
             }
-            for name, (scope_id, expected_value) in expected_repository_maps.items():
+            for name, (scope_id, expected_value) in expected_mapped_values.items():
                 auditor.equal(
                     "@organization",
                     f"automation.{scope_id}.variable.{name}.value",

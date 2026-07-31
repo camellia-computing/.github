@@ -202,7 +202,6 @@ try {
             --identity-file $identityPath `
             --variable "WINDOWS_CODESIGN_CERTIFICATE_SHA256=$($identity.certificateSha256)" `
             --variable "WINDOWS_CODESIGN_CERTIFICATE_THUMBPRINT=$($identity.nativeSha1Thumbprint)" `
-            --variable 'WINDOWS_SIGNING_TRUST_MODE=private-trust' `
             --secret-base64 "WINDOWS_CODESIGN_PFX_BASE64=$leafPfx" `
             --secret "WINDOWS_CODESIGN_PFX_PASSWORD=$bundlePasswordPath"
         if ($LASTEXITCODE -ne 0) {

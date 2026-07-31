@@ -46,7 +46,7 @@ Fork and Dependabot contexts continue without its key. A partial pair fails.
 The physical source and consumer repository names come from each product's
 logical repository map.
 
-## Cross-repository name maps
+## Cross-repository and registry maps
 
 Cross-repository workflows resolve mutable physical names through reviewed
 organization variables instead of embedding sibling repository names. The
@@ -56,6 +56,15 @@ repository scope are derived from `repository-policies.json` and checked by the
 organization audit. Rename a repository by updating the policy and this single
 organization variable in the same reviewed rollout; artifact IDs and product
 contracts remain stable.
+
+The Remote repositories use the equivalent `REMOTE_REPOSITORY_MAP`.
+Container-producing repositories receive `CONTAINER_REGISTRY_MAP`, keyed by
+logical repository ID. Each entry has explicit `ghcr` and `dockerhub` targets;
+`null` means that registry is not configured and must be reported as skipped.
+GHCR paths combine the current repository owner with the reviewed image name.
+Docker Hub paths include their reviewed namespace. Workflows must not infer a
+Docker Hub target from a credential or accept a manual image name during a
+formal release.
 
 ## Local Actions and templates
 
@@ -89,8 +98,9 @@ evidence belongs in immutable Releases or registries.
 - Prefer OIDC and installation tokens over long-lived credentials.
 - Treat identifiers and Client IDs as non-secret; private keys, signing
   containers, tokens and passwords are secrets.
-- Treat repository-map variables as public routing configuration. Keep every
-  other organization variable value opaque to policy reports.
+- Treat repository and container-registry maps as public routing
+  configuration. Keep every other organization variable value opaque to policy
+  reports.
 - Validate optional credentials as atomic groups: wholly absent may select a
   documented lower mode, partially present is always an error.
 - After changing an App permission, require owner approval and rerun every

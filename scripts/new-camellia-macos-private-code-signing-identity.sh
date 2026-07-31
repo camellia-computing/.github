@@ -182,7 +182,6 @@ python3 "$bundle_generator" \
   --identity-file "$identity_path" \
   --variable "APPLE_SIGNING_CERTIFICATE_SHA256=$certificate_sha256" \
   --variable "APPLE_SIGNING_IDENTITY=$signing_identity" \
-  --variable 'APPLE_SIGNING_TRUST_MODE=private-trust' \
   --secret-base64 "APPLE_CERTIFICATE=$output_directory/camellia-private-code-signing-leaf.p12" \
   --secret "APPLE_CERTIFICATE_PASSWORD=$bundle_password_path"
 

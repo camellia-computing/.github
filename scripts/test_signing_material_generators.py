@@ -91,7 +91,6 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
                 {
                     "APPLE_SIGNING_CERTIFICATE_SHA256",
                     "APPLE_SIGNING_IDENTITY",
-                    "APPLE_SIGNING_TRUST_MODE",
                 },
                 {"APPLE_CERTIFICATE", "APPLE_CERTIFICATE_PASSWORD"},
                 P12_PASSWORD,
@@ -272,7 +271,6 @@ class SigningMaterialGeneratorTests(unittest.TestCase):
                 {
                     "APPLE_SIGNING_CERTIFICATE_SHA256",
                     "APPLE_SIGNING_IDENTITY",
-                    "APPLE_SIGNING_TRUST_MODE",
                 },
                 {"APPLE_CERTIFICATE", "APPLE_CERTIFICATE_PASSWORD"},
                 P12_PASSWORD,

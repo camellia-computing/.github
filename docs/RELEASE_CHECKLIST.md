@@ -11,10 +11,12 @@ Record this checklist in the release pull request for the exact candidate commit
 - [ ] Every configured identity matches its protected expected identity and the downloaded bytes; trust is derived by the native verifier rather than a configured label.
 - [ ] Unsigned Android/iOS outputs are named and documented as re-signing inputs, not installable public releases.
 - [ ] Release and registry artifacts were read back by immutable digest; tags and assets cannot be silently replaced.
+- [ ] Every image records GHCR and Docker Hub independently; an unconfigured target is explicitly skipped and a configured target cannot be downgraded to a skip.
+- [ ] `latest`, when published, still resolves to the highest completed stable SemVer and every deployment input uses the recorded digest.
 - [ ] A recent isolated restore meets the default RPO ≤ 24 hours and RTO ≤ 4 hours, or a stricter product-specific target.
 - [ ] Monitoring, incident owner, staged rollout, previous digest, and rollback decision point are recorded.
 - [ ] License, corresponding-source, attribution, privacy, and jurisdiction-specific commercial obligations were reviewed.
-- [ ] Protected release-environment approval was obtained after all other evidence was complete.
+- [ ] Protected release-environment approval was obtained after all other evidence was complete, with self-review and administrator bypass disabled.
 
 The release pull request must link the validated
 [`release-evidence.json`](RELEASE_EVIDENCE.md) and the platform details in

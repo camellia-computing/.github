@@ -286,6 +286,7 @@ def fixture_for(
                     ],
                 },
                 f"{root}/environments/release": {
+                    "can_admins_bypass": policy["release"]["allow_admin_bypass"],
                     "deployment_branch_policy": {
                         "custom_branch_policies": True,
                         "protected_branches": False,
@@ -428,6 +429,14 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
             controls,
         )
 
+    def test_release_environment_admin_bypass_drift_is_reported(self) -> None:
+        responses = self.fixture(self.release_policy)
+        root = f"repos/{self.config['organization']}/{self.release_policy['name']}"
+        responses[f"{root}/environments/release"]["can_admins_bypass"] = True
+        report = self.run_fixture(self.release_policy, responses)
+        controls = {item["control"] for item in report["drifts"]}
+        self.assertIn("release_environment.can_admins_bypass", controls)
+
     def test_graphql_merge_and_bypass_drift_is_reported(self) -> None:
         responses = self.fixture(self.release_policy)
         endpoint = (
@@ -516,6 +525,18 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
                     value = json.dumps(
                         {
                             logical_id: repositories[logical_id]["name"]
+                            for logical_id in scope["repository_logical_ids"]
+                        },
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
+                elif scope["variable_value_policy"] == "container-registry-map":
+                    value = json.dumps(
+                        {
+                            logical_id: repositories[logical_id]["container"][
+                                "registries"
+                            ]
                             for logical_id in scope["repository_logical_ids"]
                         },
                         ensure_ascii=False,

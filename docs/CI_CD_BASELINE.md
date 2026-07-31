@@ -29,15 +29,15 @@ security and review outcomes are equivalent.
 ```text
 default-branch commit
   -> successful exact-SHA push CI
-  -> immutable release proposal/candidate
+  -> App-authored version-only Release PR
   -> current-head human approval
+  -> App SHA-guarded squash merge
+  -> protected tag and draft Release
+  -> tag-selected formal candidate and complete evidence
   -> protected release environment approval
-  -> build once on owning runners
-  -> verify native identity and package structure
-  -> checksum + SBOM + provenance/attestation
-  -> draft Release / immutable image digest
+  -> publish the already verified bytes and image digests
   -> download and independently verify every public byte
-  -> publish/finalize and retain evidence
+  -> finalize immutable Release/registries and retain evidence
 ```
 
 All release jobs are serialized and idempotent. A retry observes remote state
@@ -84,7 +84,7 @@ package metadata adopts Remote's explicit trust and delivery vocabulary.
   Release, with the exact release-capable repository ID set managed centrally
   at organization level.
 - A `release` environment with non-self team review, protected branch/tag
-  policies and no broad deployment token.
+  policies, administrator bypass disabled, and no broad deployment token.
 - Tag rules preventing update/deletion of release tags.
 - Repository rules requiring the stable aggregate CI check and CodeQL/security
   checks.

@@ -190,7 +190,6 @@ if [[ "$mode" == macos ]]; then
     --identity-file "$identity_path" \
     --variable "APPLE_SIGNING_CERTIFICATE_SHA256=$certificate_sha256" \
     --variable "APPLE_SIGNING_IDENTITY=$signing_identity" \
-    --variable "APPLE_SIGNING_TRUST_MODE=$trust_mode" \
     --secret-base64 "APPLE_CERTIFICATE=$p12_path" \
     --secret "APPLE_CERTIFICATE_PASSWORD=$password_path"
 else
