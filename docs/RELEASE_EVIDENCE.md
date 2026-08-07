@@ -1,7 +1,7 @@
 # Release evidence contract
 
-Every candidate and formal release publishes one `release-evidence.json`
-conforming to
+Every candidate and formal release produces and retains one `release-evidence.json`
+in its CI evidence or attestation storage, conforming to
 [`release-evidence.schema.json`](../schemas/release-evidence.schema.json).
 It binds the logical repository and stable version to the exact source commit,
 tag or candidate ref, successful validation run, reviewed policy revisions,
@@ -58,8 +58,15 @@ reference, and must be valid when the release evidence is generated. Missing
 credentials, signature failure, immutable-release failure, authorization
 failure, or registry readback failure are not exceptions.
 
-The workflow uploads evidence into the draft Release, downloads all public
-bytes into a clean directory, revalidates digests, signatures and registry
-state, then publishes the same bytes. Any correction produces a new version;
-an immutable Release, protected tag or published stable alias is never
-rewritten.
+The workflow freezes and revalidates the complete evidence set before
+publication. GitHub Release Assets are a separate product-facing surface:
+downloadable products expose only their reviewed final distribution files,
+file checksums, and narrowly required user-verification material; OCI-only
+products may expose no file assets and instead bind their immutable registry
+digest in the Release notes. SBOMs, provenance, attestations, Sigstore bundles,
+scans, metadata and internal evidence remain available through their CI,
+attestation or evidence systems without being ordinary Release downloads.
+
+Publication reads back the complete public file set or the exact OCI digest and
+registry state, as applicable. Any correction produces a new version; an
+immutable Release, protected tag or published stable alias is never rewritten.

@@ -17,8 +17,9 @@ Every formal release must retain the supply-chain evidence layer:
 - an immutable source commit and version;
 - SHA-256 checksums for downloadable files;
 - an SBOM and provenance/attestation where the artifact type supports them;
-- keyless Sigstore/Cosign signing or attestation for release assets and
-  container images;
+- keyless Sigstore/Cosign signing or attestation for distributed files,
+  retained release evidence, and container images; generated bundles do not
+  have to be ordinary GitHub Release Assets;
 - digest readback after publication.
 
 Operating-system publisher signing is a separate, optional layer. It improves
@@ -317,6 +318,16 @@ may record an identity already embedded in the artifact, but must not copy a
 private inventory, local keychain path, password, access token or raw secret.
 Human-readable release notes summarize the same category and installation
 limitations.
+
+GitHub Release is the end-user distribution surface, not the evidence store.
+For downloadable products it contains only the final installers/archives,
+their `SHA256SUMS`, and narrowly scoped public verification material. Optional
+OpenPGP material is allowed only as a detached signature derived from a named
+final Linux artifact plus one explicitly named public release key; a blanket
+`*.asc` upload is forbidden. The independently published full fingerprint is
+the trust anchor, not a key downloaded beside its own signature. OCI-only
+products identify their signed immutable registry digest in Release notes and
+need not publish a file asset.
 
 ## Deployment and verification
 
