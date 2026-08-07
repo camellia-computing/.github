@@ -63,7 +63,9 @@ publication. GitHub Release Assets are a separate product-facing surface:
 downloadable products expose only their reviewed final distribution files,
 file checksums, and narrowly required user-verification material; OCI-only
 products may expose no file assets and instead bind their immutable registry
-digest in the Release notes. SBOMs, provenance, attestations, Sigstore bundles,
+digest in the Release notes. Every public filename is selected by an exact
+product allowlist, and publication fails closed on any additional file. SBOMs,
+provenance, attestations, Sigstore bundles,
 scans, metadata and internal evidence remain available through their CI,
 attestation or evidence systems without being ordinary Release downloads.
 
