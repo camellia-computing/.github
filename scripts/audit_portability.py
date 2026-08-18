@@ -18,6 +18,14 @@ OWNER_LITERAL_ALLOWLIST = {
     "config/repository-policies.json",
     "config/signing-identities.json",
     "profile/README.md",
+    "config/remote-system-contract.json",
+    "schemas/remote-system-contract.schema.json",
+    "scripts/run_remote_system.py",
+    "scripts/build_remote_candidate_template.py",
+    "scripts/test_run_remote_system.py",
+    "scripts/test_build_remote_candidate_template.py",
+    "scripts/test_validate_remote_system_manifest.py",
+    "scripts/validate_remote_system_manifest.py",
 }
 PHYSICAL_NAME_ALLOWLIST = {
     ".github/CODEOWNERS",

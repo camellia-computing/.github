@@ -43,6 +43,11 @@ jobs:
           uvx --from check-jsonschema==0.37.4 check-jsonschema \
             --schemafile schemas/repository-policies.schema.json \
             config/repository-policies.json
+          uvx --from check-jsonschema==0.37.4 check-jsonschema \
+            --check-metaschema schemas/remote-system-contract.schema.json
+          uvx --from check-jsonschema==0.37.4 check-jsonschema \
+            --schemafile schemas/remote-system-contract.schema.json \
+            config/remote-system-contract.json
       - name: Validate Python quality
         run: |
           uvx --from ruff==0.16.0 ruff check scripts

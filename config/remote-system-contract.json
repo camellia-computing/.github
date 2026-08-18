@@ -1,0 +1,83 @@
+{
+  "$schema": "../schemas/remote-system-contract.schema.json",
+  "schema_version": 1,
+  "contract_revision": "2026-08-18.1",
+  "organization": "camellia-computing",
+  "logical_repositories": [
+    "remote-client",
+    "remote-management",
+    "remote-protocol",
+    "remote-server"
+  ],
+  "service_repositories": [
+    "remote-management",
+    "remote-server"
+  ],
+  "required_images": [
+    "remote-management",
+    "remote-server"
+  ],
+  "required_artifacts": [
+    "remote-client-web",
+    "remote-client-controller",
+    "remote-server-image",
+    "remote-management-image"
+  ],
+  "scenarios": [
+    "auth-device-verification",
+    "direct-session",
+    "forced-relay-session",
+    "first-frame-input",
+    "file-clipboard-audit",
+    "reconnect-shutdown"
+  ],
+  "modes": {
+    "smoke": {
+      "max_duration_seconds": 900,
+      "required_scenarios": [
+        "auth-device-verification",
+        "direct-session",
+        "forced-relay-session",
+        "first-frame-input",
+        "reconnect-shutdown"
+      ]
+    },
+    "exhaustive": {
+      "max_duration_seconds": 7200,
+      "required_scenarios": [
+        "auth-device-verification",
+        "direct-session",
+        "forced-relay-session",
+        "first-frame-input",
+        "file-clipboard-audit",
+        "reconnect-shutdown"
+      ]
+    }
+  },
+  "artifact_policy": {
+    "retention_days": 7,
+    "max_manifest_bytes": 262144,
+    "max_evidence_bytes": 4194304,
+    "forbidden_field_tokens": [
+      "password",
+      "secret",
+      "token",
+      "private_key",
+      "credential",
+      "cookie",
+      "authorization",
+      "raw_log",
+      "pii"
+    ]
+  },
+  "isolation": {
+    "required": [
+      "compose_project",
+      "network",
+      "volume_prefix",
+      "credential_namespace",
+      "port_range"
+    ],
+    "max_name_length": 63
+  }
+}
