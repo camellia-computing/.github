@@ -9,7 +9,7 @@ import os
 import re
 import sys
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
@@ -387,7 +387,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if not re.fullmatch(r"20\d{2}-\d{2}-\d{2}\.[1-9]\d*", revision):
         raise ValueError("policy_revision must use YYYY-MM-DD.N")
     reviewed = date.fromisoformat(require_string(config, "last_reviewed_on"))
-    if reviewed > datetime.now(timezone.utc).date():
+    if reviewed > datetime.now(UTC).date():
         raise ValueError("last_reviewed_on cannot be in the future")
     if revision.split(".", 1)[0] != reviewed.isoformat():
         raise ValueError("policy_revision date must equal last_reviewed_on")
@@ -1544,7 +1544,6 @@ def audit_repository(
     codeql = api.get(f"{endpoint_root}/code-scanning/default-setup")
     expected_codeql_setup = {
         "query_suite": "default",
-        "schedule": "weekly",
         "state": "configured",
         "threat_model": "remote_and_local",
     }
@@ -1555,6 +1554,17 @@ def audit_repository(
             codeql.get(field) if isinstance(codeql, dict) else codeql,
             expected,
         )
+
+    schedule = (
+        codeql.get("schedule", "missing") if isinstance(codeql, dict) else "missing"
+    )
+    auditor.true(
+        repository,
+        "security.codeql_default_setup.schedule",
+        schedule in (None, "weekly"),
+        [None, "weekly"],
+        schedule,
+    )
 
     managed_security = api.get(f"{endpoint_root}/code-security-configuration")
     managed_configuration = (
@@ -1984,7 +1994,7 @@ def audit_repositories(
     return {
         "schema_version": 2,
         "policy_revision": config["policy_revision"],
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "organization": organization,
         "repositories": repositories,
         "status": "compliant" if not auditor.drifts else "drift",
@@ -2093,9 +2103,7 @@ def main() -> int:
         report = {
             "schema_version": 2,
             "policy_revision": "unavailable",
-            "generated_at": datetime.now(timezone.utc)
-            .isoformat()
-            .replace("+00:00", "Z"),
+            "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "organization": report_organization,
             "repositories": [],
             "status": "drift",
