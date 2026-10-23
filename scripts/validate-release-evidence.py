@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -507,7 +507,7 @@ def validate_release_evidence(value: dict[str, Any]) -> None:
         )
     except ValueError as error:
         raise ValueError("generated_at must be RFC 3339") from error
-    if generated_timestamp.tzinfo != timezone.utc:
+    if generated_timestamp.tzinfo != UTC:
         raise ValueError("generated_at must use UTC")
 
     validate_policy(value.get("policy"), generated_on=generated_timestamp.date())

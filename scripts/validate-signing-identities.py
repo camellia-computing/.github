@@ -7,7 +7,7 @@ import argparse
 import json
 import re
 import subprocess
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -134,7 +134,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
     if not re.fullmatch(r"20\d{2}-\d{2}-\d{2}\.[1-9]\d*", revision):
         raise ValueError("registry_revision must use YYYY-MM-DD.N")
     reviewed = date.fromisoformat(require_string(registry, "last_reviewed_on"))
-    if reviewed > datetime.now(timezone.utc).date():
+    if reviewed > datetime.now(UTC).date():
         raise ValueError("last_reviewed_on cannot be in the future")
     if revision.split(".", 1)[0] != reviewed.isoformat():
         raise ValueError("registry_revision date must equal last_reviewed_on")

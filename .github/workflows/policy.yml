@@ -24,13 +24,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up JDK for Android signing material checks
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '21'
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          version: 0.12.0
+          version: 0.13.5
           enable-cache: false
       - name: Validate registry and tracked signing material
         run: python3 scripts/validate-signing-identities.py
@@ -38,15 +38,15 @@ jobs:
         run: python3 scripts/audit_portability.py
       - name: Validate reviewed policy schema
         run: |
-          uvx --from check-jsonschema==0.37.4 check-jsonschema \
+          uvx --from check-jsonschema==0.38.2 check-jsonschema \
             --check-metaschema schemas/repository-policies.schema.json
-          uvx --from check-jsonschema==0.37.4 check-jsonschema \
+          uvx --from check-jsonschema==0.38.2 check-jsonschema \
             --schemafile schemas/repository-policies.schema.json \
             config/repository-policies.json
       - name: Validate Python quality
         run: |
-          uvx --from ruff==0.16.0 ruff check scripts
-          uvx --from ruff==0.16.0 ruff format --check scripts
+          uvx --from ruff==0.17.2 ruff check scripts
+          uvx --from ruff==0.17.2 ruff format --check scripts
       - name: Test repository policy automation
         run: |
           python3 -m compileall -q scripts
@@ -56,12 +56,12 @@ jobs:
       - name: Validate workflow syntax
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # v1.7.12
       - name: Audit workflow security
-        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
         with:
           inputs: .
           online-audits: false
           persona: pedantic
-          version: 1.28.0
+          version: 1.31.1
           advanced-security: false
           annotations: true
 
