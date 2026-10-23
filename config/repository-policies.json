@@ -1,10 +1,10 @@
 {
   "$schema": "../schemas/repository-policies.schema.json",
   "schema_version": 5,
-  "policy_revision": "2026-07-31.2",
+  "policy_revision": "2026-10-23.1",
   "organization": "camellia-computing",
   "organization_id": 309967130,
-  "last_reviewed_on": "2026-07-31",
+  "last_reviewed_on": "2026-10-23",
   "automation_scopes": [
     {
       "logical_id": "container-registry-map",

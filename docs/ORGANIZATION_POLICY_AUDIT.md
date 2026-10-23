@@ -63,6 +63,15 @@ merge-policy values and each ruleset's bypass-actor count, while REST continues
 to verify the complete rule definitions. A GraphQL error, partial ruleset page,
 missing repository, duplicate ruleset ID or unavailable count fails closed.
 
+## Code scanning schedule
+
+CodeQL default setup must remain configured with the reviewed query suite and
+threat model. GitHub manages its weekly schedule: the API may return `null`
+before an eligible push or pull-request scan activates that schedule, or while
+scheduled scanning is inactive. Both `weekly` and explicit `null` are valid;
+missing or unknown schedule data and disabled default setup still fail the audit.
+See [GitHub's default-setup scheduling rules](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/edit-default-setup).
+
 ## Reviewed controls
 
 [`repository-policies.json`](../config/repository-policies.json) is the

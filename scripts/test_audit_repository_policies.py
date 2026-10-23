@@ -403,6 +403,41 @@ class RepositoryPolicyAuditTests(unittest.TestCase):
         self.assertEqual(report["drift_count"], 0)
         self.assertIn("all repositories match", audit.render_markdown(report))
 
+    def test_configured_codeql_accepts_a_github_managed_inactive_schedule(self) -> None:
+        responses = self.fixture(self.release_policy)
+        root = f"repos/{self.config['organization']}/{self.release_policy['name']}"
+        responses[f"{root}/code-scanning/default-setup"]["schedule"] = None
+        report = self.run_fixture(self.release_policy, responses)
+        self.assertEqual(report["status"], "compliant")
+
+    def test_inactive_schedule_does_not_allow_disabled_codeql(self) -> None:
+        responses = self.fixture(self.release_policy)
+        root = f"repos/{self.config['organization']}/{self.release_policy['name']}"
+        responses[f"{root}/code-scanning/default-setup"].update(
+            schedule=None, state="unconfigured"
+        )
+        report = self.run_fixture(self.release_policy, responses)
+        self.assertIn(
+            "security.codeql_default_setup.state",
+            {item["control"] for item in report["drifts"]},
+        )
+
+    def test_codeql_rejects_unknown_or_missing_schedule_data(self) -> None:
+        root = f"repos/{self.config['organization']}/{self.release_policy['name']}"
+        for schedule in ("daily", "disabled", [], {}, "missing"):
+            with self.subTest(schedule=schedule):
+                responses = self.fixture(self.release_policy)
+                setup = responses[f"{root}/code-scanning/default-setup"]
+                if schedule == "missing":
+                    setup.pop("schedule")
+                else:
+                    setup["schedule"] = schedule
+                report = self.run_fixture(self.release_policy, responses)
+                self.assertIn(
+                    "security.codeql_default_setup.schedule",
+                    {item["control"] for item in report["drifts"]},
+                )
+
     def test_compliant_library_does_not_require_release_controls(self) -> None:
         report = self.run_fixture(
             self.library_policy,

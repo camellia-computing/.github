@@ -1544,7 +1544,6 @@ def audit_repository(
     codeql = api.get(f"{endpoint_root}/code-scanning/default-setup")
     expected_codeql_setup = {
         "query_suite": "default",
-        "schedule": "weekly",
         "state": "configured",
         "threat_model": "remote_and_local",
     }
@@ -1555,6 +1554,17 @@ def audit_repository(
             codeql.get(field) if isinstance(codeql, dict) else codeql,
             expected,
         )
+
+    schedule = (
+        codeql.get("schedule", "missing") if isinstance(codeql, dict) else "missing"
+    )
+    auditor.true(
+        repository,
+        "security.codeql_default_setup.schedule",
+        schedule in (None, "weekly"),
+        [None, "weekly"],
+        schedule,
+    )
 
     managed_security = api.get(f"{endpoint_root}/code-security-configuration")
     managed_configuration = (
