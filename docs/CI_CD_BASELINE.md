@@ -6,6 +6,9 @@ security and review outcomes are equivalent.
 
 ## Pull-request and main gates
 
+Dependency grouping, coupled updates, constraint records and cost-aware validation
+follow [Dependency maintenance and review](DEPENDENCY_MAINTENANCE.md).
+
 - Protect the default branch. Require a pull request, current-head approval
   from a non-author, conversation resolution, CODEOWNERS review where
   applicable, and dismissal of stale approval after a push.
