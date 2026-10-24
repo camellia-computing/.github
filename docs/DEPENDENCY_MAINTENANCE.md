@@ -36,6 +36,26 @@ wire formats or native linking.
   register. A release on either side triggers another removal review. Never grow
   an audit exception just because the dependency graph changed.
 
+## Shared TypeScript constraint
+
+Both Nexus frontends use TypeScript 6 because the current stable Svelte tooling
+does not declare support for TypeScript 7: `svelte-check` 4.7.7 accepts TypeScript
+5 or 6, and `svelte2tsx` 0.7.62 accepts 4.9, 5 or 6. Their published
+[checker manifest](https://registry.npmjs.org/svelte-check/4.7.7) and
+[transformer manifest](https://registry.npmjs.org/svelte2tsx/0.7.62) are the
+compatibility evidence, not the success of a standalone compiler installation.
+Frontend maintainers own this constraint. Recheck it when either tool publishes;
+advance the compiler, checker and transformer together once their peer ranges
+agree, then require peer validation, application checks, generated types, browser
+tests and the complete native/product gates. Do not override those peer ranges.
+
+Routine freshness does not require restarting a validated batch whenever another
+patch appears. Use each repository's committed cooldown and next grouped proposal
+for a newly published non-security update. Review its source changes and record
+the disposition; do not turn a short cooldown into a permanent version pin.
+Security fixes and currently affected functionality require a separate urgency
+decision rather than silently waiting for that cooldown.
+
 ## Efficient validation
 
 Use deterministic narrow checks during adaptation, then run the complete existing
